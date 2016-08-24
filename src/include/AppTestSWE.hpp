@@ -14,7 +14,7 @@
 #include <rexi/REXI.hpp>
 #include <GaussQuadrature.hpp>
 #include <sph/SPHDataComplex.hpp>
-
+#include <sph/SPHSolver.hpp>
 
 
 class AppTestSWE
@@ -204,7 +204,7 @@ public:
 			benchmarkGalewsky.setup_initial_v(prog_v);
 		}
 
-		int timestepping_method = 0;
+		int timestepping_method = 1;
 
 		if (timestepping_method == 0)
 		{
@@ -248,6 +248,10 @@ public:
 		}
 		else
 		{
+			SPHSolver<double> sphSolver;
+			sphSolver.setup(sphConfig, 4);
+
+
 			rexi.setup(0.2, 256);
 
 			// convert to geopotential

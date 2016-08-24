@@ -8,7 +8,7 @@
 #ifndef SPHOPERATORS_HPP_
 #define SPHOPERATORS_HPP_
 
-#include "SPHData.hpp"
+#include <sph/SPHData.hpp>
 
 class SPHOperators
 {
@@ -244,7 +244,7 @@ public:
 			i_sph_data.spec_getElement_im_in(ni-1, mi, P0);
 			i_sph_data.spec_getElement_im_in(ni+1, mi, P2);
 
-#if 1
+#if 0
 //			std::cout << "ni=" << ni << ", mi=" << mi << std::endl;
 			// wrong code, but don't know why it's wrong
 			double offset = 2.0;
@@ -265,8 +265,6 @@ public:
 #endif
 
 		}
-//		exit(1);
-
 		out_sph_data.data_spec_valid = true;
 		out_sph_data.data_spat_valid = false;
 
@@ -472,9 +470,9 @@ public:
 		SPHData out_sph_data(i_sph_data);
 
 		out_sph_data.spec_update_lambda(
-				[](int ni, int mi, cplx &o_data)
+				[](int n, int m, cplx &o_data)
 				{
-					o_data *= -(double)ni*((double)ni+1.0);
+					o_data *= -(double)n*((double)n+1.0);
 				}
 			);
 

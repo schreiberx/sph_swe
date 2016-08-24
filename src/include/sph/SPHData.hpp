@@ -356,11 +356,10 @@ public:
 		if (data_spat_valid)
 			request_data_spectral();
 
-		std::size_t idx = 0;
-
 #pragma omp parallel for
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
+			std::size_t idx = sphConfig->getPIndexByModes(m, m);
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				i_lambda(n, m, data_spec[idx]);

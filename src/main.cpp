@@ -1,6 +1,15 @@
+/*
+ * SimVars.hpp
+ *
+ *  Created on: ?? Aug 2016
+ *      Author: martin
+ */
+
+
 #include <AppOutputSphericalHarmonics.hpp>
-#include <AppTestOperators.hpp>
+#include <AppTestSPHOperators.hpp>
 #include <AppTestSWE.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -148,6 +157,7 @@ int main(
 		const char *i_argv[]
 )
 {
+
 	/*
 	 * Initialize NUMA block allocator
 	 */

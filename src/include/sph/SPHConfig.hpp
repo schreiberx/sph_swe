@@ -95,11 +95,15 @@ public:
 	}
 
 
-	std::size_t getPIndexByModes(int l, int im)
+	std::size_t getPIndexByModes(
+			int n,
+			int m
+	)	const
 	{
 //		return (spec_n_max-im)*im + ((im+1)*im)/2+l;
-		return (im*(2*spec_n_max-im+1)>>1)+l;
+		return (m*(2*spec_n_max-m+1)>>1)+n;
 	}
+
 
 
 private:
