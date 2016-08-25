@@ -5,8 +5,8 @@
  *      Author: martin
  */
 
-#ifndef SRC_TESTOPERATORS_HPP_
-#define SRC_TESTOPERATORS_HPP_
+#ifndef SRC_TESTSPHSOLVERS_HPP_
+#define SRC_TESTSPHSOLVERS_HPP_
 
 #include <SimVars.hpp>
 #include <sph/SPHData.hpp>
@@ -18,7 +18,7 @@
 
 
 
-class AppTestOperators
+class AppTestSPHSolvers
 {
 public:
 	SimVars simVars;
@@ -408,4 +408,4 @@ public:
 };
 
 
-#endif /* SRC_TESTOPERATORS_HPP_ */
+#endif /* SRC_TESTSPHSOLVERS_HPP_ */

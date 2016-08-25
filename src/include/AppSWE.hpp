@@ -17,7 +17,7 @@
 #include <sph/SPHSolver.hpp>
 
 
-class AppTestSWE
+class AppSWE
 {
 public:
 	SimVars &simVars;
@@ -46,7 +46,7 @@ public:
 
 
 public:
-	AppTestSWE(
+	AppSWE(
 			SPHConfig *i_sphConfig,
 			SimVars &i_simVars
 	)	:
@@ -181,6 +181,8 @@ public:
 		std::cout << " + earth_radius: " << simVars.earth_radius << std::endl;
 		std::cout << " + coriolis_omega: " << simVars.coriolis_omega << std::endl;
 		std::cout << " + viscosity D2: " << simVars.viscosity2 << std::endl;
+		std::cout << " + use_nonlinear: " << simVars.use_nonlinear_equations << std::endl;
+		std::cout << " + timestepping method: " << simVars.timestepping_method << std::endl;
 		std::cout << std::endl;
 
 		fdata.spat_update_lambda_gaussian_grid(
@@ -204,9 +206,8 @@ public:
 			benchmarkGalewsky.setup_initial_v(prog_v);
 		}
 
-		int timestepping_method = 1;
 
-		if (timestepping_method == 0)
+		if (simVars.timestepping_method == 0)
 		{
 			simVars.timecontrol.current_simulation_time = 0;
 			while (simVars.timecontrol.current_simulation_time < simVars.timecontrol.max_simulation_time)
@@ -223,7 +224,7 @@ public:
 				double o_dt;
 				timestepping.run_rk_timestep(
 						this,
-						&AppTestSWE::p_run_euler_timestep_update,	///< pointer to function to compute euler time step updates
+						&AppSWE::p_run_euler_timestep_update,	///< pointer to function to compute euler time step updates
 						prog_h, prog_u, prog_v,
 						o_dt,
 						simVars.timecontrol.current_timestep_size,

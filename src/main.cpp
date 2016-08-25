@@ -6,10 +6,6 @@
  */
 
 
-#include <AppOutputSphericalHarmonics.hpp>
-#include <AppTestSPHOperators.hpp>
-#include <AppTestSWE.hpp>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -22,9 +18,15 @@
 #include <sph/SPHHelper.hpp>
 #include "SimVars.hpp"
 
-#include "../3rd_party/Adaptive-Integrator/AdaptiveIntegrator.hpp"
+//#include "../3rd_party/Adaptive-Integrator/AdaptiveIntegrator.hpp"
 #include <sph/SPHConfig.hpp>
 #include <sweet/MemBlockAlloc.hpp>
+
+#include <AppSWE.hpp>
+#include <AppTestSPHOperators.hpp>
+#include <AppTestSPHSolver.hpp>
+#include <AppOutputSphericalHarmonics.hpp>
+
 
 
 SimVars simVars;
@@ -62,15 +64,23 @@ int setup(
 		simVars.spec_res_m = T;
 
 
-		if (i_argc > 2)
+		for (int i = 2; i < i_argc; i++)
 		{
-			if (i_argv[2][0] == 'F')
+			if (i_argv[i][0] == 'F')
 			{
-				simVars.coriolis_omega = atof(&(i_argv[2][1]));
+				simVars.coriolis_omega = atof(&(i_argv[i][1]));
 			}
-			else if (i_argv[2][0] == 'P')
+			else if (i_argv[i][0] == 'P')
 			{
-				simVars.program_id = atoi(&(i_argv[2][1]));
+				simVars.program_id = atoi(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'N')
+			{
+				simVars.use_nonlinear_equations = atoi(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'M')
+			{
+				simVars.timestepping_method = atoi(&(i_argv[i][1]));
 			}
 		}
 	}
@@ -173,11 +183,26 @@ int main(
 	if (retval != 0)
 		return retval;
 
-	//OutputSphericalHarmonics output_spherical_harmonics; output_spherical_harmonics.run(&sphConfig);
+	if (simVars.program_id == 0)
+	{
+		AppSWE test_swe(&sphConfig, simVars);
+		test_swe.run();
+	}
+	else if (simVars.program_id == 1)
+	{
+		AppTestSPHOperators test_operators; test_operators.run(&sphConfig);
+	}
 
-	AppTestOperators test_operators; test_operators.run(&sphConfig);
+	else if (simVars.program_id == 2)
+	{
+		AppTestSPHOperators test_operators; test_operators.run(&sphConfig);
+	}
 
-	//AppTestSWE test_swe(&sphConfig, simVars); test_swe.run();
+	else if (simVars.program_id == 3)
+	{
+		AppOutputSphericalHarmonics output_spherical_harmonics;
+		output_spherical_harmonics.run(&sphConfig);
+	}
 
 	sphConfig.shutdown();
 }

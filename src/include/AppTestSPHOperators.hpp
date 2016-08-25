@@ -18,7 +18,7 @@
 
 
 
-class AppTestOperators
+class AppTestSPHOperators
 {
 public:
 	SimVars simVars;

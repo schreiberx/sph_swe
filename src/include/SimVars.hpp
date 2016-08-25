@@ -28,6 +28,8 @@ struct SimVars
 	double viscosity2 = 1e5;
 //	double viscosity2 = 1e2;
 
+	int timestepping_method = 0;
+
 	bool use_nonlinear_equations = true;
 	double h0 = 10000.0;
 
