@@ -22,10 +22,10 @@
 #include <sph/SPHConfig.hpp>
 #include <sweet/MemBlockAlloc.hpp>
 
-#include <AppSWE.hpp>
-#include <AppTestSPHOperators.hpp>
-#include <AppTestSPHSolver.hpp>
-#include <AppOutputSphericalHarmonics.hpp>
+#include "AppSWE.hpp"
+#include "AppTestSPHOperators.hpp"
+#include "AppTestSPHSolver.hpp"
+#include "AppOutputSphericalHarmonics.hpp"
 
 
 
@@ -48,8 +48,8 @@ int setup(
 
 	if (i_argv[1][0] == 'T')
 	{
-		int T = atoi(&(i_argv[1][1]));
-		std::cout << "Using T=" << T << std::endl;
+		int spec_order = atoi(&(i_argv[1][1]));
+		std::cout << "Using T=" << spec_order << std::endl;
 
 		/*
 		 * http://www.ecmwf.int/en/what-horizontal-resolution-data
@@ -60,9 +60,8 @@ int setup(
 		 * Use Triangular truncation M=N=K
 		 */
 
-		simVars.spec_res_n = T;
-		simVars.spec_res_m = T;
-
+		simVars.spec_res_n = spec_order;
+		simVars.spec_res_m = spec_order;
 
 		for (int i = 2; i < i_argc; i++)
 		{

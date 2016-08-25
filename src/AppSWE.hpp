@@ -9,10 +9,9 @@
 #define SRC_TESTSWE_HPP_
 
 #include "../../3rd_party/Adaptive-Integrator/AdaptiveIntegrator.hpp"
-#include <BenchmarkGalewsky.hpp>
-#include <TimesteppingRK.hpp>
+#include <benchmarks/BenchmarkGalewsky.hpp>
+#include <sweet/TimesteppingRK.hpp>
 #include <rexi/REXI.hpp>
-#include <GaussQuadrature.hpp>
 #include <sph/SPHDataComplex.hpp>
 #include <sph/SPHSolver.hpp>
 

@@ -5,17 +5,17 @@
  *      Author: martin
  */
 
-#ifndef SRC_INCLUDE_SPH_SPHTESTSOLUTIONS_SPH_HPP_
-#define SRC_INCLUDE_SPH_SPHTESTSOLUTIONS_SPH_HPP_
+#ifndef SRC_INCLUDE_SPH_SPHERETESTSOLUTIONS_SPH_HPP_
+#define SRC_INCLUDE_SPH_SPHERETESTSOLUTIONS_SPH_HPP_
 
 
-class SPHTestSolutions_SPH
+class SphereTestSolutions_SPH
 {
 	int tn;
 	int tm;
 
 public:
-	SPHTestSolutions_SPH(int i_n, int i_m)	:
+	SphereTestSolutions_SPH(int i_n, int i_m)	:
 		tn(i_n),
 		tm(i_m)
 	{
@@ -171,4 +171,4 @@ public:
 
 
 
-#endif /* SRC_INCLUDE_SPH_SPHTESTSOLUTIONS_SPH_HPP_ */
+#endif /* SRC_INCLUDE_SPH_SPHERETESTSOLUTIONS_SPH_HPP_ */

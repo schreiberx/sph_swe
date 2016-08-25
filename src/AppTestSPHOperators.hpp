@@ -1,24 +1,24 @@
 /*
- * AppTestSPHSolver.hpp
+ * AppTestSPHOperators.hpp
  *
  *  Created on: 15 Aug 2016
  *      Author: martin
  */
 
-#ifndef SRC_TESTSPHSOLVERS_HPP_
-#define SRC_TESTSPHSOLVERS_HPP_
+#ifndef SRC_TESTOPERATORS_HPP_
+#define SRC_TESTOPERATORS_HPP_
 
+#include <benchmarks/SphereTestSolutions_Gaussian.hpp>
+#include <benchmarks/SphereTestSolutions_SPH.hpp>
 #include <SimVars.hpp>
 #include <sph/SPHData.hpp>
 #include <sph/SPHDataComplex.hpp>
 #include <sph/SPHOperators.hpp>
 #include <sph/SPHConfig.hpp>
-#include <sph/SPHTestSolutions_Gaussian.hpp>
-#include <sph/SPHTestSolutions_SPH.hpp>
 
 
 
-class AppTestSPHSolvers
+class AppTestSPHOperators
 {
 public:
 	SimVars simVars;
@@ -35,7 +35,7 @@ public:
 
 		if (true)
 		{
-			SPHTestSolutions_SPH testSolutionsSph(2,1);
+			SphereTestSolutions_SPH testSolutionsSph(2,1);
 
 			int tn = 1;
 			int tm = 0;
@@ -68,7 +68,7 @@ public:
 
 
 		{
-			SPHTestSolutions_Gaussian testSolutions;
+			SphereTestSolutions_Gaussian testSolutions;
 
 
 			if (true)
@@ -408,4 +408,4 @@ public:
 };
 
 
-#endif /* SRC_TESTSPHSOLVERS_HPP_ */
+#endif /* SRC_TESTOPERATORS_HPP_ */

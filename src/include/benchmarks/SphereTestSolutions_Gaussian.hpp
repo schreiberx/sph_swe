@@ -9,7 +9,7 @@
 #define SRC_INCLUDE_SPHTESTSOLUTIONSGAUSSIAN_HPP_
 
 
-class SPHTestSolutions_Gaussian
+class SphereTestSolutions_Gaussian
 {
 	double exp_fac = 10.0;
 #if 0
@@ -22,7 +22,7 @@ class SPHTestSolutions_Gaussian
 
 
 public:
-	SPHTestSolutions_Gaussian()
+	SphereTestSolutions_Gaussian()
 	{
 	}
 

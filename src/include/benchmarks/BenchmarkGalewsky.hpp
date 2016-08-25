@@ -8,7 +8,7 @@
 #ifndef SRC_BENCHMARKGALEWSKY_HPP_
 #define SRC_BENCHMARKGALEWSKY_HPP_
 
-#include <GaussQuadrature.hpp>
+#include <libmath/GaussQuadrature.hpp>
 
 class BenchmarkGalewsky
 {
