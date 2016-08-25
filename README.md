@@ -11,6 +11,8 @@ First, install SHTNS library for Spherical Harmonics transformations:
 	$ ./install_shtns.sh
 	$ cd ..
 
+If you don't have FFTW3 installed, use the ./install_fftw3.sh script to install it
+
 
 Setup environment (Don't forget the '.' at the very beginning):
 	$ . ./local_software/env_vars.sh
