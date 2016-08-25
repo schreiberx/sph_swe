@@ -22,6 +22,8 @@ struct SimVars
 	double gravitation = 9.80616;
 	double earth_radius = 6.37122e6;
 
+	int program_id = 0;
+
 //	double viscosity2 = 1e-8;
 	double viscosity2 = 1e5;
 //	double viscosity2 = 1e2;

@@ -68,6 +68,10 @@ int setup(
 			{
 				simVars.coriolis_omega = atof(&(i_argv[2][1]));
 			}
+			else if (i_argv[2][0] == 'P')
+			{
+				simVars.program_id = atoi(&(i_argv[2][1]));
+			}
 		}
 	}
 	else

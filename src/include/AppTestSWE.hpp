@@ -1,5 +1,5 @@
 /*
- * TestSWE.hpp
+ * AppTestSWE.hpp
  *
  *  Created on: 15 Aug 2016
  *      Author: martin
