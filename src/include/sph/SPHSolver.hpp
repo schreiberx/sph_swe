@@ -14,6 +14,9 @@
 template <typename T>
 class SPHSolver
 {
+//friend class SPHMatrix<T>;
+
+public:
 	SPHMatrix<T> lhs;
 	SPHMatrix<T> inv_lhs;
 
@@ -51,6 +54,7 @@ public:
 	)
 	{
 		T set_value = i_value;
+		//set_value *= sqrt(2.0*M_PI);
 
 		int idx = 0;
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
@@ -66,6 +70,15 @@ public:
 
 	void setupInverse()
 	{
+		/**
+		 * For diagonal only
+		 */
+		for (std::size_t idx = 0; idx < sphConfig->spec_num_elems; idx++)
+		{
+			std::size_t p = idx*inv_lhs.num_diagonals + inv_lhs.halosize_off_diagonal;
+			inv_lhs.data[p] = 1.0/lhs.data[p];
+		}
+
 		/*
 		 * TODO: compute inverse
 		 */
@@ -74,28 +87,39 @@ public:
 
 
 
-	SPHData solve(SPHData &i_sph_data)
+	SPHData solve(SPHData &i_rhs)
 	{
+		i_rhs.request_data_spectral();
 		assert(inv_lhs_valid);
 
 		SPHData out(sphConfig);
 
+		std::size_t idx = 0;
 
-		int idx = 0;
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
-			/*
-			 * TODO: matrix multiplication
-			 */
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
-				for (int i = 0; i < inv_lhs.matrix_width; i++)
+				T accum = T(0);
+				int hn = n-inv_lhs.halosize_off_diagonal;
+
+				for (int i = 0; i < inv_lhs.num_diagonals; i++)
 				{
-					//
+					T &matrix_scalar = inv_lhs.data[idx*inv_lhs.num_diagonals+i];
+					T value;
+					i_rhs.spec_getElement(hn, m, value);
+
+					accum += matrix_scalar*value;
+					hn++;
 				}
+
+				out.data_spec[idx] = accum;
 				idx++;
 			}
 		}
+
+		out.data_spec_valid = true;
+		out.data_spat_valid = false;
 
 		return out;
 	}

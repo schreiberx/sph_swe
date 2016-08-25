@@ -460,6 +460,8 @@ public:
 			cplx &o_mode_scalar
 	)	const
 	{
+//		if (!data_spec_valid)
+//			request_data_spectral();
 		assert(data_spec_valid);
 
 		if (	n < 0 ||
@@ -637,6 +639,44 @@ public:
 						);
 		}
 		return error;
+	}
+
+
+	void print(int i_precision = 8)	const
+	{
+		request_data_spatial();
+
+		std::cout << std::setprecision(i_precision);
+
+#if 0
+		for (std::size_t i = 0; i < sphConfig->spat_num_lon; i++)
+		{
+			double lon_degree = ((double)i/(double)sphConfig->spat_num_lon)*2.0*M_PI;
+			lon_degree = lon_degree/M_PI*180.0;
+
+			std::cout << lon_degree;
+			if (i < sphConfig->spat_num_lon-1)
+				std::cout << "\t";
+		}
+		std::cout << std::endl;
+#endif
+
+        for (int j = sphConfig->spat_num_lat-1; j >= 0; j--)
+        {
+#if 0
+        		double lat_degree = sphConfig->lat[j];
+        		lat_degree = lat_degree/M_PI*180.0;
+
+        		std::cout << lat_degree << "\t";
+#endif
+        		for (int i = 0; i < sphConfig->spat_num_lon; i++)
+        		{
+        			std::cout << data_spat[i*sphConfig->spat_num_lat+j];
+        			if (i < sphConfig->spat_num_lon-1)
+        				std::cout << "\t";
+        		}
+        		std::cout << std::endl;
+        }
 	}
 
 

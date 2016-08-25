@@ -32,10 +32,12 @@ class SPHMatrix
 	 * The the Vector P is given by
 	 *   P = (P_0^0, P_1^0, P_2^0, P_3^0, P_1^1, P_2^1, P_3^1, P_2^2, P_3^2, P_3^3)^T
 	 */
-
+public:
 	T *data;
+
+public:
 	int halosize_off_diagonal;
-	int number_diagonals;
+	int num_diagonals;
 
 	SPHConfig *sphConfig;
 
@@ -44,7 +46,7 @@ public:
 	SPHMatrix()	:
 		data(nullptr),
 		halosize_off_diagonal(-1),
-		number_diagonals(-1),
+		num_diagonals(-1),
 		sphConfig(nullptr)
 	{
 	}
@@ -56,7 +58,7 @@ public:
 	 */
 	void zeroAll()
 	{
-		for (std::size_t i = 0; i < sphConfig->spec_num_elems*number_diagonals; i++)
+		for (std::size_t i = 0; i < sphConfig->spec_num_elems*num_diagonals; i++)
 			data[i] = T(0);
 	}
 
@@ -74,9 +76,9 @@ public:
 		sphConfig = i_sphConfig;
 
 		halosize_off_diagonal = i_halosize_offdiagonal;
-		number_diagonals = 2*halosize_off_diagonal+1;
+		num_diagonals = 2*halosize_off_diagonal+1;
 
-		data = MemBlockAlloc::alloc<T>(sizeof(T)*sphConfig->spec_num_elems*number_diagonals);
+		data = MemBlockAlloc::alloc<T>(sizeof(T)*sphConfig->spec_num_elems*num_diagonals);
 
 		zeroAll();
 	}
@@ -92,7 +94,7 @@ public:
 	)
 	{
 		std::size_t idx = sphConfig->getPIndexByModes(n, m);
-		return data+idx*number_diagonals;
+		return data+idx*num_diagonals;
 	}
 
 
@@ -108,7 +110,7 @@ public:
 			T &i_value		///< Value to set in the matrix element
 	)
 	{
-		assert(i_row_n > i_row_m);
+		assert(i_row_n >= i_row_m);
 		assert(i_row_m >= 0);
 		assert(i_row_m <= sphConfig->spec_m_max);
 
@@ -117,7 +119,7 @@ public:
 		if (n < 0 || n < i_row_m || n > sphConfig->spec_n_max)
 			return;
 
-		int idx = rel_n + halosize_off_diagonal+1;
+		int idx = rel_n + halosize_off_diagonal;
 
 		assert(idx >= 0 || idx <= halosize_off_diagonal*2+1);
 
@@ -130,7 +132,7 @@ public:
 	{
 		if (data != nullptr)
 		{
-			MemBlockAlloc::free(data, sizeof(T)*sphConfig->spec_num_elems*number_diagonals);
+			MemBlockAlloc::free(data, sizeof(T)*sphConfig->spec_num_elems*num_diagonals);
 			data = nullptr;
 		}
 	}
@@ -140,6 +142,46 @@ public:
 		shutdown();
 	}
 
+
+	void print()
+	{
+		std::size_t idx = 0;
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			std::cout << "Meridional block M=" << m << " with N=[" << m << ", " << sphConfig->spec_n_max << "]" << std::endl;
+
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				if (n == m)
+				{
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << hn;
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+					std::cout << std::endl;
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << "*******";
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+					std::cout << std::endl;
+				}
+
+				for (int i = 0; i < num_diagonals; i++)
+				{
+					std::cout << data[idx*num_diagonals+i];
+					if (i != num_diagonals-1)
+						std::cout << "\t";
+				}
+				std::cout << std::endl;
+
+				idx++;
+			}
+		}
+	}
 };
 
 

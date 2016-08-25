@@ -184,21 +184,37 @@ int main(
 
 	if (simVars.program_id == 0)
 	{
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppSWE" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
 		AppSWE test_swe(&sphConfig, simVars);
 		test_swe.run();
 	}
 	else if (simVars.program_id == 1)
 	{
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppTestSPHOperators" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
 		AppTestSPHOperators test_operators; test_operators.run(&sphConfig);
 	}
 
 	else if (simVars.program_id == 2)
 	{
-		AppTestSPHOperators test_operators; test_operators.run(&sphConfig);
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppTestSPHSolvers" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
+		AppTestSPHSolvers test_operators; test_operators.run(&sphConfig);
 	}
 
 	else if (simVars.program_id == 3)
 	{
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppOutputSphericalHarmonics" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
 		AppOutputSphericalHarmonics output_spherical_harmonics;
 		output_spherical_harmonics.run(&sphConfig);
 	}
