@@ -244,20 +244,14 @@ public:
 			i_sph_data.spec_getElement_im_in(ni-1, mi, P0);
 			i_sph_data.spec_getElement_im_in(ni+1, mi, P2);
 
-#if 0
-//			std::cout << "ni=" << ni << ", mi=" << mi << std::endl;
-			// wrong code, but don't know why it's wrong
-			double offset = 2.0;
-			out_sph_data.data_spec[idx] = -(
-										 ((ni-offset) + 1.0)*R(ni-1,mi)*P0
-										+(-(ni+offset) + 0)*S(ni+1,mi)*P2
-									);
+#if 1
+			out_sph_data.data_spec[idx] =	((-ni+1.0)*R(ni-1,mi))*P0 +
+											((ni+2.0)*S(ni+1,mi))*P2;
 #else
+			// from SHTNS - sht_func.c
 			/*
 			 * A minus sign shows up here due to the colatitude
 			 */
-			// from SHTNS - sht_func.c
-			//out_sph_data.data_spec[idx] = -((ni - 1.0)*R(ni-1,mi)*P0 + (-ni - 2.0)*S(ni+1,mi)*P2);
 			out_sph_data.data_spec[idx] = -(
 										  (ni - 1.0)*sqrt((ni*ni-mi*mi)/(4.0*ni*ni-1.0))*P0
 										+ (-ni - 2.0)*sqrt(((ni+1.0)*(ni+1.0)-mi*mi)/((2.0*ni+1.0)*(2.0*ni+3.0)))*P2
