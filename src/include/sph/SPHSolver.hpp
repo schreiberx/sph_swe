@@ -12,16 +12,24 @@
 #include <sph/SPHMatrix.hpp>
 
 
+
 template <typename T>
 class SPHSolver
 {
-//friend class SPHMatrix<T>;
-
 public:
+	/**
+	 * Matrix on left-hand side
+	 */
 	SPHMatrix<T> lhs;
 
+	/**
+	 * SPH configuration
+	 */
 	SPHConfig *sphConfig;
 
+	/**
+	 * Solver for banded matrix
+	 */
 	BandedMatrixSolver<T> bandedMatrixSolver;
 
 
@@ -30,18 +38,15 @@ public:
 	 */
 public:
 	void setup(
-			SPHConfig *i_sphConfig,				///< Handler to sphConfig
-			int i_halosize_offdiagonal = -1		///< Size of the halo around. A value of 2 allocates data for 5 diagonals.
+			SPHConfig *i_sphConfig,		///< Handler to sphConfig
+			int i_halosize_offdiagonal	///< Size of the halo around. A value of 2 allocates data for 5 diagonals.
 	)
 	{
 		sphConfig = i_sphConfig;
 
-		if (i_halosize_offdiagonal == -1)
-			i_halosize_offdiagonal = 4;
-
 		lhs.setup(sphConfig, i_halosize_offdiagonal);
 
-		bandedMatrixSolver.setup(i_sphConfig->spec_num_elems, i_halosize_offdiagonal);
+		bandedMatrixSolver.setup(i_sphConfig->spec_n_max+1, i_halosize_offdiagonal);
 	}
 
 
@@ -81,10 +86,11 @@ public:
 		{
 			int idx = sphConfig->getPIndexByModes(m,m);
 
-			bandedMatrixSolver.solve_diagBandedInverse(
+			bandedMatrixSolver.solve_diagBandedInverse_C(
 							&lhs.data[idx*lhs.num_diagonals],
 							&i_rhs.data_spec[idx],
-							&out.data_spec[idx]
+							&out.data_spec[idx],
+							sphConfig->spec_n_max-m+1	// size of block
 					);
 		}
 #if 0

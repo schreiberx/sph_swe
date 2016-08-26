@@ -37,6 +37,12 @@ public:
 	T *data;
 
 public:
+	/**
+	 * Data storage format for Fortran
+	 */
+	T *fortran_data;
+
+public:
 	int halosize_off_diagonal;
 	int num_diagonals;
 
@@ -46,6 +52,7 @@ public:
 public:
 	SPHMatrix()	:
 		data(nullptr),
+		fortran_data(nullptr),
 		halosize_off_diagonal(-1),
 		num_diagonals(-1),
 		sphConfig(nullptr)
@@ -137,6 +144,12 @@ public:
 			MemBlockAlloc::free(data, sizeof(T)*sphConfig->spec_num_elems*num_diagonals);
 			data = nullptr;
 		}
+
+		if (fortran_data != nullptr)
+		{
+			MemBlockAlloc::free(fortran_data, sizeof(T)*sphConfig->spec_num_elems*num_diagonals);
+			fortran_data = nullptr;
+		}
 	}
 
 
@@ -144,6 +157,18 @@ public:
 	~SPHMatrix()
 	{
 		shutdown();
+	}
+
+
+
+	void convertToFortranArray()
+	{
+		if (fortran_data == nullptr)
+			fortran_data = MemBlockAlloc::alloc<T>(sizeof(T)*sphConfig->spec_num_elems*num_diagonals);
+
+		for (int j = 0; j < sphConfig->spec_num_elems; j++)
+			for (int i = 0; i < num_diagonals; i++)
+				fortran_data[i*sphConfig->spec_num_elems + j] = data[j*num_diagonals + i];
 	}
 
 
@@ -178,6 +203,48 @@ public:
 				for (int i = 0; i < num_diagonals; i++)
 				{
 					std::cout << data[idx*num_diagonals+i];
+					if (i != num_diagonals-1)
+						std::cout << "\t";
+				}
+				std::cout << std::endl;
+
+				idx++;
+			}
+		}
+	}
+
+
+	void printFortran()
+	{
+		std::size_t idx = 0;
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			std::cout << "Meridional block M=" << m << " with N=[" << m << ", " << sphConfig->spec_n_max << "]" << std::endl;
+
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				if (n == m)
+				{
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << hn;
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+
+					std::cout << std::endl;
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << "*******";
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+					std::cout << std::endl;
+				}
+
+				for (int i = 0; i < num_diagonals; i++)
+				{
+					std::cout << fortran_data[idx+i*sphConfig->spec_num_elems];
 					if (i != num_diagonals-1)
 						std::cout << "\t";
 				}

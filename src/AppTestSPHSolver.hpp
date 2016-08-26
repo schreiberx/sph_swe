@@ -43,12 +43,13 @@ public:
 
 			if (true)
 			{
-				assert(sphConfig->spec_n_max >= 32);
+				//assert(sphConfig->spec_n_max >= 32);
 
+//				std::cout << sphConfig->spec_n_max << std::endl;
 				SPHSolver<std::complex<double>> sphSolver;
-				sphSolver.setup(sphConfig, 3);
+				sphSolver.setup(sphConfig, 2);
 
-				/**
+				/*
 				 * Solve
 				 * a * x = b
 				 *
@@ -56,6 +57,15 @@ public:
 				 */
 				double scalar_a = 2.0;
 				sphSolver.solver_component_const(scalar_a);
+
+#if 0
+				sphSolver.lhs.print();
+
+				sphSolver.lhs.convertToFortranArray();
+				sphSolver.lhs.printFortran();
+//				exit(1);
+#endif
+
 
 #if 0
 				std::cout << std::endl;
@@ -72,7 +82,6 @@ public:
 						}
 				);
 
-				std::cout << "B spatial data:" << std::endl;
 				SPHData x_numerical = sphSolver.solve(b);
 
 				/*
@@ -86,7 +95,7 @@ public:
 						}
 				);
 				//result = result.spat_truncate();
-				x_result.spat_write_file("O_diff_phi_correct_result.csv");
+				//x_result.spat_write_file("O_diff_phi_correct_result.csv");
 
 //				x_result.spat_truncate();
 //				x_numerical.spat_truncate();

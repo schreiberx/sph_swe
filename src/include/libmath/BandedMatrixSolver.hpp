@@ -14,6 +14,24 @@
 
 
 /*
+ * LAPACK description:
+ *
+ * For an array
+ * 	REAL A( LDA, * )
+ *
+ * LDA is called the leading dimension of the array.
+ * In Fortran, the values in this dimension
+ * are consecutively stored in memory.
+ *
+ * aij = A(i,j)
+ *
+ *    a11 a12 a13 a14   |
+ *    a21 a22 a23 a24   |
+ *    a31 a32 a33 a34   |LDA
+ *    a41 a42 a43 a44   v
+ *
+ */
+/*
  * We can't store the inverse of the general band matrix since
  * the inverse would result in a dense matrix.
  *
@@ -69,9 +87,9 @@ template <typename T>
 class MatrixSolversCommon
 {
 public:
-	int N;
+	int max_N;
 	int num_diagonals;
-	int num_off_diagonals;
+	int num_halo_size_diagonals;
 
 	int LDAB;
 
@@ -79,7 +97,8 @@ public:
 	int *IPIV;
 
 	MatrixSolversCommon()	:
-		AB(nullptr)
+		AB(nullptr),
+		IPIV(nullptr)
 	{
 	}
 
@@ -91,25 +110,35 @@ public:
 	}
 
 	void setup(
-			int i_N,			///< size of the matrix
-			int i_num_diagonals	///< number of block diagonals
+			int i_max_N,			///< size of the matrix
+			int i_num_off_diagonals		///< number of block diagonals
 	)
 	{
-		N = i_N;
-		num_diagonals = i_num_diagonals;
-		num_off_diagonals = num_diagonals>>1;
-		assert(2*num_off_diagonals+1 == num_diagonals);
+		max_N = i_max_N;
+		num_diagonals = 2*i_num_off_diagonals+1;
+		num_halo_size_diagonals = i_num_off_diagonals;
 
-		LDAB = 2*num_off_diagonals + num_off_diagonals + 1;
+		assert(2*num_halo_size_diagonals+1 == num_diagonals);
 
-		AB = (std::complex<double>*)malloc(LDAB*i_N);
-		IPIV = (int*)malloc(sizeof(int)*i_N);
+		LDAB = 2*num_halo_size_diagonals + num_halo_size_diagonals + 1;
+
+		AB = (std::complex<double>*)malloc(sizeof(std::complex<double>)*LDAB*i_max_N);
+		IPIV = (int*)malloc(sizeof(int)*i_max_N);
 	}
 
 	void shutdown()
 	{
-		free(IPIV);
-		free(AB);
+		if (IPIV != nullptr)
+		{
+			free(IPIV);
+			IPIV = nullptr;
+		}
+
+		if (AB != nullptr)
+		{
+			free(AB);
+			AB = nullptr;
+		}
 	}
 };
 
@@ -123,11 +152,18 @@ public:
 	 *
 	 * A*X = B
 	 */
-	void solve_diagBandedInverse(
+	void solve_diagBandedInverse_C(
 		const std::complex<double>* i_A,		///< Matrix for input and in-place transformations
 		const std::complex<double>* i_b,		///< RHS of equation and output of solution X
 		std::complex<double>* o_x,
-		int i_num_diagonals,
+		int i_size
+	);
+
+
+	void solve_diagBandedInverse_Fortran(
+		const std::complex<double>* i_A,		///< Matrix for input and in-place transformations
+		const std::complex<double>* i_b,		///< RHS of equation and output of solution X
+		std::complex<double>* o_x,
 		int i_size
 	);
 };
@@ -137,41 +173,122 @@ template <>
 class BandedMatrixSolver<std::complex<double>>	:
 		public MatrixSolversCommon<std::complex<double>>
 {
+	/**
+	 * Solve for input matrix
+	 *
+	 * i_A: width: num_diagonals
+	 *      height: i_size
+	 *
+	 * i_b: RHS of equation
+	 *
+	 * o_x: Solution
+	 */
 public:
-	void solve_diagBandedInverse(
+	void solve_diagBandedInverse_C(
 		const std::complex<double>* i_A,
 		const std::complex<double>* i_b,
-		std::complex<double>* o_x
+		std::complex<double>* o_x,
+		int i_size
+	)
+	{
+		assert(max_N >= i_size);
+
+#if 0
+		// zero everything
+		for (std::size_t j = 0; j < i_size; j++)
+			for (int i = 0; i < num_diagonals; i++)
+				o_x[j*num_diagonals+i] = std::complex<double>(0);
+
+		for (std::size_t idx = 0; idx < i_size; idx++)
+		{
+			o_x[idx] = i_b[idx]/i_A[idx*num_diagonals+num_halo_size_diagonals];
+		}
+#else
+		/*
+		 * Convert to Fortran storage array
+		 */
+#if 0
+		//std::cout << "num_diagonals: " << num_diagonals << std::endl;
+		for (int i = 0; i < LDAB*i_size; i++)
+			AB[i] = 0;
+#endif
+		assert(max_N >= i_size);
+
+		// c columns / fortran rows
+		for (int i = 0; i < num_diagonals; i++)
+		{
+			// c rows / fortran columns
+			for (int j = 0; j < i_size; j++)
+			{
+				// AB is LDAB large!
+				assert(LDAB*max_N > i*i_size+j);
+
+				// note, that the array is upside-down
+				AB[j*LDAB + (LDAB-i-1)] = i_A[j*num_diagonals + i];
+			}
+		}
+
+#if 0
+		std::cout << "****************************" << std::endl;
+		for (int i = 0; i < LDAB; i++)
+		{
+			for (int j = 0; j < i_size; j++)
+			{
+				std::cout << AB[j*LDAB + i] << "\t";
+			}
+			std::cout << std::endl;
+		}
+#endif
+		solve_diagBandedInverse_Fortran_largeA(AB, i_b, o_x, i_size);
+
+#endif
+	}
+
+
+public:
+	void solve_diagBandedInverse_Fortran_largeA(
+		const std::complex<double>* i_A,	///< A of max size
+		const std::complex<double>* i_b,
+		std::complex<double>* o_x,
+		int i_size
 	)
 	{
 		assert(num_diagonals & 1 == 1);
 		assert(AB != nullptr);
 
-#if 1
 		/*
 		 * Make a copy of the array data since this is a destructive function
 		 */
-		memcpy((void*)AB, (const void*)i_A, sizeof(std::complex<double>)*num_diagonals*N);
-		memcpy((void*)o_x, (const void*)i_b, sizeof(std::complex<double>)*N);
+		if (AB != i_A)
+			memcpy((void*)AB, (const void*)i_A, sizeof(std::complex<double>)*num_diagonals*LDAB);
 
+		memcpy((void*)o_x, (const void*)i_b, sizeof(std::complex<double>)*i_size);
 
 		int one = 1;
 		int info;
+
+#if 0
+		std::cout << "************************************" << std::endl;
+		std::cout << "i_size: " << i_size << std::endl;
+		std::cout << "num_halo_size_diagonals: " << num_halo_size_diagonals << std::endl;
+		std::cout << "LDAB: " << LDAB << std::endl;
+#endif
+
 		zgbsv_(
-				N,					// number of linear equations
-				num_off_diagonals,	// number of subdiagonals
-				num_off_diagonals,	// number of superdiagonals
+				i_size,				// number of linear equations
+				num_halo_size_diagonals,	// number of subdiagonals
+				num_halo_size_diagonals,	// number of superdiagonals
 				one,				// number of columns of matrix B
 				AB,					// array with matrix A to solve for
 				LDAB,				// leading dimension of matrix A
 				IPIV,				// integer array for pivoting
 				o_x,				// output array
-				N,					// leading dimension of array o_x
+				i_size,				// leading dimension of array o_x
 				info
 			);
-#if 0
+
+#if 1
 		bool bvalue = true;
-		int one = 1;
 		zlapmt_(
 				bvalue,	// true = forward permutation
 				i_size,	// rows
@@ -180,24 +297,6 @@ public:
 				one,		// leading dimension
 				IPIV
 			);
-#endif
-
-#elif 1
-		int mid = i_num_diagonals >> 1;
-
-		// zero everything
-		for (std::size_t j = 0; j < i_size; j++)
-			for (int i = 0; i < i_num_diagonals; i++)
-				o_out[j*i_num_diagonals+i] = std::complex<double>(0);
-
-		for (std::size_t idx = 0; idx < i_size; idx++)
-		{
-			std::size_t i = idx*i_num_diagonals+mid;
-			o_out[i] = 1.0/i_in[i];
-		}
-
-#else
-
 #endif
 
 	}
