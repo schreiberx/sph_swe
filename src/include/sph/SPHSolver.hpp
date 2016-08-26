@@ -8,6 +8,7 @@
 #ifndef SRC_INCLUDE_SPH_SPHSOLVER_HPP_
 #define SRC_INCLUDE_SPH_SPHSOLVER_HPP_
 
+#include <libmath/BandedMatrixSolver.hpp>
 #include <sph/SPHMatrix.hpp>
 
 
@@ -18,11 +19,11 @@ class SPHSolver
 
 public:
 	SPHMatrix<T> lhs;
-	SPHMatrix<T> inv_lhs;
-
-	bool inv_lhs_valid;
 
 	SPHConfig *sphConfig;
+
+	BandedMatrixSolver<T> bandedMatrixSolver;
+
 
 	/**
 	 * Setup the SPH solver
@@ -39,9 +40,8 @@ public:
 			i_halosize_offdiagonal = 4;
 
 		lhs.setup(sphConfig, i_halosize_offdiagonal);
-		inv_lhs.setup(sphConfig, i_halosize_offdiagonal);
 
-		inv_lhs_valid = false;
+		bandedMatrixSolver.setup(i_sphConfig->spec_num_elems, i_halosize_offdiagonal);
 	}
 
 
@@ -68,36 +68,33 @@ public:
 	}
 
 
-	void setupInverse()
-	{
-		/**
-		 * For diagonal only
-		 */
-		for (std::size_t idx = 0; idx < sphConfig->spec_num_elems; idx++)
-		{
-			std::size_t p = idx*inv_lhs.num_diagonals + inv_lhs.halosize_off_diagonal;
-			inv_lhs.data[p] = 1.0/lhs.data[p];
-		}
 
-		/*
-		 * TODO: compute inverse
-		 */
-		inv_lhs_valid = true;
-	}
-
-
-
-	SPHData solve(SPHData &i_rhs)
+	SPHData solve(
+			const SPHData &i_rhs
+	)
 	{
 		i_rhs.request_data_spectral();
-		assert(inv_lhs_valid);
 
 		SPHData out(sphConfig);
+
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			int idx = sphConfig->getPIndexByModes(m,m);
+
+			bandedMatrixSolver.solve_diagBandedInverse(
+							&lhs.data[idx*lhs.num_diagonals],
+							&i_rhs.data_spec[idx],
+							&out.data_spec[idx]
+					);
+		}
+#if 0
 
 		std::size_t idx = 0;
 
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
+			int test_idx = sphConfig->getPIndexByModes(m,m);
+
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T accum = T(0);
@@ -117,7 +114,7 @@ public:
 				idx++;
 			}
 		}
-
+#endif
 		out.data_spec_valid = true;
 		out.data_spat_valid = false;
 

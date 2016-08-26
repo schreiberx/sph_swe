@@ -31,7 +31,7 @@ public:
 //	shtns_cfg shtns;
 
 public:
-	cplx *data_spec;
+	std::complex<double> *data_spec;
 	double *data_spat;
 
 	bool data_spec_valid;
@@ -298,7 +298,7 @@ private:
 		data_spec = MemBlockAlloc::alloc<cplx>(sphConfig->spec_num_elems * sizeof(cplx));
 
 		//data_spat = (double *) fftw_malloc(sphConfig->spat_num_elems * sizeof(double));
-		//data_spec = (cplx *) fftw_malloc(sphConfig->spec_num_elems * sizeof(cplx));
+		//data_spec = (std::complex<double> *) fftw_malloc(sphConfig->spec_num_elems * sizeof(cplx));
 	}
 
 
@@ -418,7 +418,7 @@ public:
 	void spec_getElement_im_in(
 			int in,
 			int im,
-			cplx &o_mode_scalar
+			std::complex<double> &o_mode_scalar
 	)	const
 	{
 		assert(data_spec_valid);
@@ -457,7 +457,7 @@ public:
 	void spec_getElement(
 			int n,
 			int m,
-			cplx &o_mode_scalar
+			std::complex<double> &o_mode_scalar
 	)	const
 	{
 //		if (!data_spec_valid)

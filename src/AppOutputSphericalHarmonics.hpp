@@ -36,7 +36,7 @@ public:
 			for (int m = 0; m <= std::min((int)sphConfig->spec_m_max, n); m++)
 			{
 				h.spec_update_lambda(
-						[&](int i_n, int i_m, cplx &o_data)
+						[&](int i_n, int i_m, std::complex<double> &o_data)
 						{
 							if (i_n == n && i_m == m)
 								o_data = 1;

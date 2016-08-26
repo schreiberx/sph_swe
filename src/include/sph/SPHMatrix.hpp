@@ -12,10 +12,11 @@
 #include <sweet/MemBlockAlloc.hpp>
 
 
+
 /**
- * Matrix to store coefficients related to spherical harmonics
+ * Matrix to store coefficients related to Spherical Harmonics
  */
-template<typename T = double>
+template <typename T = double>
 class SPHMatrix
 {
 	/**
@@ -61,6 +62,7 @@ public:
 		for (std::size_t i = 0; i < sphConfig->spec_num_elems*num_diagonals; i++)
 			data[i] = T(0);
 	}
+
 
 
 	/**
@@ -137,10 +139,13 @@ public:
 		}
 	}
 
+
+
 	~SPHMatrix()
 	{
 		shutdown();
 	}
+
 
 
 	void print()

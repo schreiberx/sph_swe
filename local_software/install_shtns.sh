@@ -18,7 +18,7 @@ if [ ! -e "$DST_DIR/lib/libshtns_omp.a"  -o "$1" != "" ]; then
 	tar xzf "$FILENAME"
 	cd "$BASENAME"
 
-	./configure $HOST --prefix="$DST_DIR" --enable-openmp || exit 1
+	./configure --prefix="$DST_DIR" --enable-openmp || exit 1
 
 	make install || exit 1
 

@@ -45,7 +45,7 @@ public:
 			{
 				assert(sphConfig->spec_n_max >= 32);
 
-				SPHSolver<cplx> sphSolver;
+				SPHSolver<std::complex<double>> sphSolver;
 				sphSolver.setup(sphConfig, 3);
 
 				/**
@@ -56,19 +56,14 @@ public:
 				 */
 				double scalar_a = 2.0;
 				sphSolver.solver_component_const(scalar_a);
-				sphSolver.setupInverse();
 
 #if 0
 				std::cout << std::endl;
 				std::cout << "LHS" << std::endl;
 				sphSolver.lhs.print();
 				std::cout << std::endl;
-
-				std::cout << std::endl;
-				std::cout << "INV LHS" << std::endl;
-				sphSolver.inv_lhs.print();
-				std::cout << std::endl;
 #endif
+
 				// d/d phi
 				SPHData b(i_sphConfig);
 				b.spat_update_lambda_gaussian_grid(

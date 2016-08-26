@@ -240,7 +240,7 @@ public:
 			int ni = sphConfig->shtns->li[idx];
 			int mi = sphConfig->shtns->mi[idx];
 
-			cplx P0, P2;
+			std::complex<double> P0, P2;
 			i_sph_data.spec_getElement_im_in(ni-1, mi, P0);
 			i_sph_data.spec_getElement_im_in(ni+1, mi, P2);
 
@@ -292,11 +292,11 @@ public:
 			int ni = sphConfig->shtns->li[idx];
 			int mi = sphConfig->shtns->mi[idx];
 
-			cplx P0, P2;
+			std::complex<double> P0, P2;
 			i_sph_data.spec_getElement_im_in(ni-1, mi, P0);
 			i_sph_data.spec_getElement_im_in(ni+1, mi, P2);
 
-			cplx P = R(ni-1,mi)*P0 + S(ni+1,mi)*P2;
+			std::complex<double> P = R(ni-1,mi)*P0 + S(ni+1,mi)*P2;
 
 			out_sph_data.data_spec[idx] = P;
 		}
@@ -470,7 +470,7 @@ public:
 		SPHData out_sph_data(i_sph_data);
 
 		out_sph_data.spec_update_lambda(
-				[](int n, int m, cplx &o_data)
+				[](int n, int m, std::complex<double> &o_data)
 				{
 					o_data *= -(double)n*((double)n+1.0);
 				}

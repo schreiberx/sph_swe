@@ -1,9 +1,8 @@
 
-CFLAGS_SHTNS=-I./local_software/local/include
-LDFLAGS_SHTNS=-L./local_software/local/lib
 
-CFLAGS=-DSWEET_THREADING=1 -DNUMA_BLOCK_ALLOCATOR_TYPE=2 -fopenmp -pedantic -std=c++14  -Isrc/include $(CFLAGS_SHTNS)
-LDFLAGS=-fopenmp -L/home/martin/local/shtns-2.6.6/lib -lshtns_omp -lrt -lm -lnuma $(LDFLAGS_SHTNS)
+CFLAGS=-I./local_software/local/include -DSWEET_THREADING=1 -DNUMA_BLOCK_ALLOCATOR_TYPE=2 -fopenmp -pedantic -std=c++14  -Isrc/include
+
+LDFLAGS=-fopenmp -L./local_software/local/lib -lshtns_omp -lrt -lm -lnuma -llapack -lrefblas
 
 FFTW_LINK=-lfftw3_omp -lfftw3
 
@@ -13,12 +12,12 @@ all:	release
 debug:
 	mkdir -p build
 	$(CXX) -g -O0 $(CFLAGS) -c src/main.cpp -o build/main.o
-	$(CXX) -o build/sh_example build/main.o $(LDFLAGS) $(FFTW_LINK)
+	$(CXX) -o build/sh_example build/main.o $(LDFLAGS) $(FFTW_LINK) -lgfortran
 
 release:
 	mkdir -p build
 	$(CXX) -DNDEBUG=1 -g -O2 $(CFLAGS) -c src/main.cpp -o build/main.o
-	$(CXX) -DNDEBUG=1 -o build/sh_example build/main.o $(LDFLAGS) $(FFTW_LINK)
+	$(CXX) -DNDEBUG=1 -o build/sh_example build/main.o $(LDFLAGS) $(FFTW_LINK) -lgfortran
 
 intel:
 	# Link also with MKL instead of FFTW3

@@ -99,11 +99,11 @@ public:
 
 			if (true)
 			{
-				cplx offset(200.0, 100.0);
+				std::complex<double> offset(200.0, 100.0);
 
 				SPHDataComplex data(i_sphConfig);
 				data.spat_update_lambda(
-						[&](double x, double y, cplx &io_data)
+						[&](double x, double y, std::complex<double> &io_data)
 						{
 							io_data.real(x*y);
 							io_data.imag(x+y);
@@ -116,7 +116,7 @@ public:
 
 				SPHDataComplex data2(i_sphConfig);
 				data2.spat_update_lambda(
-						[&](double x, double y, cplx &io_data)
+						[&](double x, double y, std::complex<double> &io_data)
 						{
 							io_data.real(x*y+offset.real());
 							io_data.imag(x+y+offset.imag());

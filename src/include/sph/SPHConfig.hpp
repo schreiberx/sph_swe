@@ -9,9 +9,7 @@
 #define SPHSETUP_HPP_
 
 
-// undef for C++11 support
-#undef _COMPLEX_H
-#include <shtns.h>
+#include <libmath/shtns_inc.hpp>
 #include <cmath>
 #include <fftw3.h>
 #include <iostream>
@@ -129,6 +127,9 @@ private:
 			int idx = 0;
 			for (int m = 0; m <= spec_m_max; m++)
 			{
+
+				int test_idx = getPIndexByModes(m,m);
+
 				for (int n = m; n <= spec_n_max; n++)
 				{
 					int test_idx = getPIndexByModes(n,m);

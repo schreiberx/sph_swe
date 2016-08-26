@@ -29,8 +29,8 @@ public:
 	SPHConfig *sphConfig;
 
 public:
-	cplx *data_spat;
-	cplx *data_spec;
+	std::complex<double> *data_spat;
+	std::complex<double> *data_spec;
 
 	bool data_spec_valid;
 	bool data_spat_valid;
@@ -366,8 +366,8 @@ private:
 		data_spec_valid = false;
 		data_spat_valid = false;
 
-		data_spat = (cplx *) fftw_malloc(sphConfig->spat_num_elems * sizeof(cplx));
-		data_spec = (cplx *) fftw_malloc(sphConfig->cplx_spec_num_elems * sizeof(cplx));
+		data_spat = (std::complex<double> *) fftw_malloc(sphConfig->spat_num_elems * sizeof(cplx));
+		data_spec = (std::complex<double> *) fftw_malloc(sphConfig->cplx_spec_num_elems * sizeof(cplx));
 	}
 
 #if 0
