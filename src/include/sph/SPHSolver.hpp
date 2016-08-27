@@ -10,11 +10,17 @@
 
 #include <libmath/BandedMatrixSolver.hpp>
 #include <sph/SPHMatrix.hpp>
+#include <sph/SPHIdentities.hpp>
 
 
 
+/**
+ *
+ * phi(lambda,mu) denotes the solution
+ */
 template <typename T>
-class SPHSolver
+class SPHSolver	:
+		SPHIdentities
 {
 public:
 	/**
@@ -52,24 +58,82 @@ public:
 
 
 	/**
-	 * Add a solver component for multiplication with a constant
+	 * Solver for
+	 * 	a*phi(lambda,mu)
 	 */
-	void solver_component_const(
-			T i_value
+	void solver_component_scalar_phi(
+			std::complex<double> &i_value
 	)
 	{
-		T set_value = i_value;
-		//set_value *= sqrt(2.0*M_PI);
-
-		int idx = 0;
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.setRowElement(row, n, m, 0, set_value);
+				lhs.getRefRowElement(row, n, m, 0) += i_value;
 			}
 		}
+	}
+
+
+
+	/**
+	 * Solver for
+	 * 	mu*phi(lambda,mu)
+	 */
+	void solver_component_mu_phi()
+	{
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+				lhs.getRefRowElement(row, n, m, -1) += R(n-1,m);
+				lhs.getRefRowElement(row, n, m, +1) += S(n+1,m);
+			}
+		}
+	}
+
+
+
+
+	/**
+	 * Solver for
+	 * 	mu*mu*phi(lambda,mu)
+	 */
+	void solver_component_mu_mu_phi()
+	{
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+				lhs.getRefRowElement(row, n, m, -2) += R(n-1,m)*R(n-2,m);
+				lhs.getRefRowElement(row, n, m,  0) += R(n-1,m)*S(n,m) + S(n+1,m)*R(n,m);
+				lhs.getRefRowElement(row, n, m, +2) += S(n+1,m)*S(n+2,m);
+			}
+		}
+	}
+
+
+
+
+	/**
+	 * Solver for
+	 * 	(1-mu*mu)*d/dmu phi(lambda,mu)
+	 */
+	void solver_component_one_minus_mu_mu_diff_mu_phi()
+	{
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+				lhs.getRefRowElement(row, n, m, -1) += (-(double)n+1.0)*R(n-1,m);
+				lhs.getRefRowElement(row, n, m, +1) += ((double)n+2.0)*S(n+1,m);
+			}
+		}
+//		lhs.print();
 	}
 
 

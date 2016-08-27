@@ -41,80 +41,161 @@ public:
 		{
 			SphereTestSolutions_Gaussian testSolutions;
 
+			if (sphConfig->spec_n_max < 32)
+			{
+				std::cerr << "WARNING: AT LEAST 32 MODES REQUIRED for proper accuracy!!!" << std::endl;
+			}
+
+			/**
+			 * Use test function as expected result
+			 */
+			SPHData x_result(i_sphConfig);
+			x_result.spat_update_lambda_gaussian_grid(
+					[&](double lat, double mu, double &io_data){
+						testSolutions.test_function__grid_gaussian(lat,mu,io_data);
+					}
+			);
+
+			std::complex<double> scalar_a = 3.0;
+
+			/*
+			 * Test Z1 = c*Phi(mu)
+			 */
 			if (true)
 			{
-				//assert(sphConfig->spec_n_max >= 32);
+				std::cout << "Test Z1 = c*Phi(mu)";
 
-//				std::cout << sphConfig->spec_n_max << std::endl;
 				SPHSolver<std::complex<double>> sphSolver;
 				sphSolver.setup(sphConfig, 2);
 
+				sphSolver.solver_component_scalar_phi(scalar_a);
+
 				/*
-				 * Solve
-				 * a * x = b
-				 *
-				 * With b the manufactured solution
+				 * Setup RHS = scalar_a * phi(lambda,mu)
 				 */
-				double scalar_a = 2.0;
-				sphSolver.solver_component_const(scalar_a);
-
-#if 0
-				sphSolver.lhs.print();
-
-				sphSolver.lhs.convertToFortranArray();
-				sphSolver.lhs.printFortran();
-//				exit(1);
-#endif
-
-
-#if 0
-				std::cout << std::endl;
-				std::cout << "LHS" << std::endl;
-				sphSolver.lhs.print();
-				std::cout << std::endl;
-#endif
-
-				// d/d phi
 				SPHData b(i_sphConfig);
 				b.spat_update_lambda_gaussian_grid(
-						[&](double a, double b, double &io_data){
-							testSolutions.test_function__grid_gaussian(a,b,io_data);
+						[&](double lat, double mu, double &io_data){
+							testSolutions.test_function__grid_gaussian(lat,mu,io_data);
+							io_data *= scalar_a.real();
 						}
 				);
 
 				SPHData x_numerical = sphSolver.solve(b);
 
-				/*
-				 * Compute expected result
-				 */
-				SPHData x_result(i_sphConfig);
-				x_result.spat_update_lambda_gaussian_grid(
-						[&](double a, double b, double &io_data){
-							testSolutions.test_function__grid_gaussian(a,b,io_data);
-							io_data /= scalar_a;
+				double error_max = x_numerical.spat_reduce_error_max(x_result);
+				std::cout << " ||| Error: " << error_max << std::endl;
+			}
+
+			/*
+			 * Test Zx = mu*Phi(lam,mu) + a*Phi(lam,mu)
+			 */
+			if (true)
+			{
+				std::cout << "Test Zx = mu*Phi(lam,mu) + a*Phi(lam,mu)";
+
+				SPHSolver<std::complex<double>> sphSolver;
+				sphSolver.setup(sphConfig, 2);
+
+				sphSolver.solver_component_scalar_phi(scalar_a);
+				sphSolver.solver_component_mu_phi();
+//				sphSolver.lhs.print();
+
+				SPHData b(i_sphConfig);
+				b.spat_update_lambda_gaussian_grid(
+						[&](double lat, double mu, double &io_data){
+							double phi;
+							testSolutions.test_function__grid_gaussian(lat,mu,phi);
+
+							io_data = mu*phi+scalar_a.real()*phi;
 						}
 				);
-				//result = result.spat_truncate();
-				//x_result.spat_write_file("O_diff_phi_correct_result.csv");
 
-//				x_result.spat_truncate();
-//				x_numerical.spat_truncate();
+				SPHData x_numerical = sphSolver.solve(b);
 
-#if 0
-				std::cout << "****************************************" << std::endl;
-				std::cout << "x_result" << std::endl;
-				std::cout << "****************************************" << std::endl;
-				x_result.print();
-				std::cout << std::endl;
+//				x_numerical.spat_write_file("O_numerical.csv");
+//				x_result.spat_write_file("O_result.csv");
+//				(x_result-x_numerical).spat_write_file("O_diff.csv");
 
-				std::cout << "****************************************" << std::endl;
-				std::cout << "x_numerical" << std::endl;
-				std::cout << "****************************************" << std::endl;
-				x_numerical.print();
-				std::cout << std::endl;
-#endif
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
-				std::cout << "TEST a*x=b - Nmax(x,x') = " << error_max << std::endl;
+				std::cout << " ||| Error: " << error_max << std::endl;
+			}
+
+
+			/*
+			 * Test Zx = mu*mu*Phi(lam,mu) + a*Phi(lam,mu)
+			 */
+			if (true)
+			{
+				std::cout << "Test Zx = mu*mu*Phi(lam,mu) + a*Phi(lam,mu)";
+
+				SPHSolver<std::complex<double>> sphSolver;
+				sphSolver.setup(sphConfig, 2);
+
+				sphSolver.solver_component_scalar_phi(scalar_a);
+				sphSolver.solver_component_mu_mu_phi();
+//				sphSolver.lhs.print();
+
+				SPHData b(i_sphConfig);
+				b.spat_update_lambda_gaussian_grid(
+						[&](double lat, double mu, double &io_data){
+							testSolutions.test_function__grid_gaussian(lat,mu,io_data);
+							io_data = (mu*mu+scalar_a.real())*io_data;
+						}
+				);
+
+				SPHData x_numerical = sphSolver.solve(b);
+
+//				x_numerical.spat_write_file("O_numerical.csv");
+//				x_result.spat_write_file("O_result.csv");
+
+				double error_max = x_numerical.spat_reduce_error_max(x_result);
+				std::cout << " ||| Error: " << error_max << std::endl;
+			}
+
+
+			/*
+			 * Test Zx = (1-mu*mu)*d/dmu Phi(lam,mu) + a*Phi(lam,mu)
+			 */
+			if (true)
+			{
+				std::cout << "Test Zx = (1-mu*mu)*d/dmu Phi(lam,mu) + a*Phi(lam,mu)";
+
+				SPHSolver<std::complex<double>> sphSolver;
+				sphSolver.setup(sphConfig, 1);
+
+				sphSolver.solver_component_scalar_phi(scalar_a);
+				sphSolver.solver_component_one_minus_mu_mu_diff_mu_phi();
+//				sphSolver.lhs.print();
+
+				SPHData b(i_sphConfig);
+				b.spat_update_lambda_gaussian_grid(
+						[&](double lat, double mu, double &io_data)
+						{
+							double phi;
+							testSolutions.test_function__grid_gaussian(lat,mu,phi);
+
+							double om_dphi;
+							testSolutions.correct_result_one_minus_mu_squared_diff_lat_mu__grid_gaussian(lat,mu,om_dphi);
+
+							io_data = om_dphi + scalar_a.real()*phi;
+						}
+				);
+
+				SPHData x_numerical = sphSolver.solve(b);
+
+
+				x_numerical.spat_write_file("O_numerical.csv");
+				x_result.spat_write_file("O_result.csv");
+				(x_result-x_numerical).spat_write_file("O_diff.csv");
+
+				std::cout << std::endl;
+				std::cout << "SPECTRAL DIFFERENCE" << std::endl;
+				(x_result-x_numerical).spec_print();
+				std::cout << std::endl;
+
+				double error_max = x_numerical.spat_reduce_error_max(x_result);
+				std::cout << " ||| Error: " << error_max << std::endl;
 			}
 		}
 	}

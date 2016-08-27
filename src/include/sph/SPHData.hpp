@@ -642,6 +642,24 @@ public:
 	}
 
 
+	void spec_print(int i_precision = 8)	const
+	{
+		request_data_spectral();
+
+		std::cout << std::setprecision(i_precision);
+
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			std::size_t idx = sphConfig->getPIndexByModes(m, m);
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				std::cout << data_spec[idx] << "\t";
+				idx++;
+			}
+			std::cout << std::endl;
+		}
+	}
+
 	void print(int i_precision = 8)	const
 	{
 		request_data_spatial();

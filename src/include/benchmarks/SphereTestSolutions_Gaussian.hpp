@@ -18,6 +18,7 @@ class SphereTestSolutions_Gaussian
 #else
 	double center_lon = M_PI/5;
 	double center_lat = M_PI/4;
+//	double center_lat = 0;
 #endif
 
 

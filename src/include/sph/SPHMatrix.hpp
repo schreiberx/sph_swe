@@ -108,31 +108,37 @@ public:
 
 
 
+
+
 	/**
 	 * Set an element in the row to the specified value
 	 */
-	void setRowElement(
+	T &getRefRowElement(
 			T *io_row,		///< pointer to current row
 			int i_row_n,	///< row related to P Legendre mode n
 			int i_row_m,	///< row related to P Fourier mode n
-			int rel_n,		///< Relative Legendre mode n (e.g. -1 or +2)
-			T &i_value		///< Value to set in the matrix element
+			int rel_n		///< Relative Legendre mode n (e.g. -1 or +2)
 	)
 	{
-		assert(i_row_n >= i_row_m);
+		static T dummy;
+
+		if (i_row_n < i_row_m)
+			return dummy;
+
+//		assert(i_row_n >= i_row_m);
 		assert(i_row_m >= 0);
 		assert(i_row_m <= sphConfig->spec_m_max);
 
 		int n = i_row_n+rel_n;
 
 		if (n < 0 || n < i_row_m || n > sphConfig->spec_n_max)
-			return;
+			return dummy;
 
 		int idx = rel_n + halosize_off_diagonal;
 
-		assert(idx >= 0 || idx <= halosize_off_diagonal*2+1);
+		assert(idx >= 0 && idx < num_diagonals);
 
-		io_row[idx] = i_value;
+		return io_row[idx];
 	}
 
 

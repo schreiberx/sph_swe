@@ -193,12 +193,12 @@ public:
 	{
 		assert(max_N >= i_size);
 
-#if 0
 		// zero everything
 		for (std::size_t j = 0; j < i_size; j++)
 			for (int i = 0; i < num_diagonals; i++)
 				o_x[j*num_diagonals+i] = std::complex<double>(0);
 
+#if 0
 		for (std::size_t idx = 0; idx < i_size; idx++)
 		{
 			o_x[idx] = i_b[idx]/i_A[idx*num_diagonals+num_halo_size_diagonals];
@@ -207,10 +207,10 @@ public:
 		/*
 		 * Convert to Fortran storage array
 		 */
-#if 0
+#ifndef NDEBUG
 		//std::cout << "num_diagonals: " << num_diagonals << std::endl;
 		for (int i = 0; i < LDAB*i_size; i++)
-			AB[i] = 0;
+			AB[i] = 666.0;
 #endif
 		assert(max_N >= i_size);
 
@@ -224,12 +224,13 @@ public:
 				assert(LDAB*max_N > i*i_size+j);
 
 				// note, that the array is upside-down
-				AB[j*LDAB + (LDAB-i-1)] = i_A[j*num_diagonals + i];
+				//AB[j*LDAB + (LDAB-i-1)] = i_A[j*num_diagonals + i];
+				AB[j*LDAB + (LDAB-(num_diagonals-i-1)-1)] = i_A[j*num_diagonals + i];
 			}
 		}
 
-#if 0
-		std::cout << "****************************" << std::endl;
+#if 1
+		std::cout << "*** A MATRIX IN FORTRAN FORMAT ***" << std::endl;
 		for (int i = 0; i < LDAB; i++)
 		{
 			for (int j = 0; j < i_size; j++)
@@ -238,6 +239,7 @@ public:
 			}
 			std::cout << std::endl;
 		}
+		std::cout << std::endl;
 #endif
 		solve_diagBandedInverse_Fortran_largeA(AB, i_b, o_x, i_size);
 
@@ -287,18 +289,24 @@ public:
 				info
 			);
 
+		if (info != 0)
+		{
+			std::cerr << "zgbsv returned INFO != 0: " << info << std::endl;
+			assert(false);
+			exit(1);
+		}
+
 #if 1
-		bool bvalue = true;
+		bool bvalue = false;
 		zlapmt_(
 				bvalue,	// true = forward permutation
 				i_size,	// rows
 				one,		// cols
 				o_x,
-				one,		// leading dimension
+				i_size,		// leading dimension
 				IPIV
 			);
 #endif
-
 	}
 
 };

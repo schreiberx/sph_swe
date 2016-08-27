@@ -9,8 +9,10 @@
 #define SPHOPERATORS_HPP_
 
 #include <sph/SPHData.hpp>
+#include <sph/SPHIdentities.hpp>
 
-class SPHOperators
+class SPHOperators	:
+		public SPHIdentities
 {
 	double *sin_mx = nullptr;
 	double *cos_mx = nullptr;
@@ -143,19 +145,7 @@ public:
 
 
 	/**
-	 * Compute gradient component along longitude
-	 *
-	 * The gradient along the longitude in a Gaussian grid is given by
-	 *
-	 * (1-\mu^2)^{-1/2}   D/D\mu f(\lambda,\mu)
-	 *
-	 * Using partial integration and the Gaussian quadrature,
-	 * the spectral representation of this operator is
-	 *
-	 * f_n^m = i*m \sum_j  (1-\mu^2)^{-1/2} \xi^m P_n^m(\mu_j)
-	 *
-	 * In other words, we can multiply f_n^m with -i*m in spectral space and
-	 * (1-\mu^2)^{-1/2} in physical space
+	 * Compute gradient component along longitude (lambda)
 	 */
 	SPHData grad_lon(
 			const SPHData &i_sph_data
@@ -188,40 +178,6 @@ public:
 	    return retval;
 	}
 
-
-
-	static double D(double k, double m)
-	{
-		double n=k+1;
-		assert(n >= 0);
-//		if (n < 0)
-//			n = -n-1;
-		return ((2.0*n+1.0)*sqrt((n*n-m*m)/(4.0*n*n-1.0)));
-	}
-
-	static double E(double n, double m)
-	{
-		assert(n >= 0);
-		return -n;
-	}
-
-	static double R(double k, double m)
-	{
-		double n=k+1;
-		assert(n >= 0);
-//		if (n < 0)
-//			n = -n-1;
-		return sqrt((n*n-m*m)/(4.0*n*n-1.0));
-	}
-
-	static double S(double k, double m)
-	{
-		double n=k-1;
-		assert(n >= 0);
-//		if (n < 0)
-//			n = -n-1;
-		return sqrt(((n+1.0)*(n+1.0)-m*m)/((2.0*n+1.0)*(2.0*n+3.0)));
-	}
 
 
 	SPHData spec_one_minus_mu_squared_diff_lat_mu(
