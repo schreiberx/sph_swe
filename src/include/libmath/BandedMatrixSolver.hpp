@@ -60,31 +60,32 @@ subroutine zgbsv
 extern "C"
 {
 	void zgbsv_(
-			int &N,
-			int &KL,
-			int &KU,
-			int &NRHS,
+			const int &N,
+			const int &KL,
+			const int &KU,
+			const int &NRHS,
 			std::complex<double> *AB,
-			int &LDAB,
+			const int &LDAB,
 			int *IPIV,
 			std::complex<double> *B,
-			int &LDB,
+			const int &LDB,
 			int &INFO
 	);
-
-	void zlapmt_(
-			bool &forward,
+#if 0
+	void zlapmr_(
+			int &forward,
 			int &M,	// rows
 			int &N,	// cols
 			std::complex<double> *X,
-			int &LDX,
-			int *K
+			int &LDX,	// leading dimension
+			int *K		// pivotization table
 	);
+#endif
 }
 
 
 template <typename T>
-class MatrixSolversCommon
+class BandedMatrixSolverCommon
 {
 public:
 	int max_N;
@@ -96,7 +97,7 @@ public:
 	std::complex<double>* AB;
 	int *IPIV;
 
-	MatrixSolversCommon()	:
+	BandedMatrixSolverCommon()	:
 		AB(nullptr),
 		IPIV(nullptr)
 	{
@@ -104,7 +105,7 @@ public:
 
 
 
-	~MatrixSolversCommon()
+	~BandedMatrixSolverCommon()
 	{
 		shutdown();
 	}
@@ -126,6 +127,7 @@ public:
 		IPIV = (int*)malloc(sizeof(int)*i_max_N);
 	}
 
+
 	void shutdown()
 	{
 		if (IPIV != nullptr)
@@ -140,11 +142,53 @@ public:
 			AB = nullptr;
 		}
 	}
+
+
+	void print_array_fortran(
+			const T *i_data,
+			int i_cols,
+			int i_rows
+	)
+	{
+		// rows
+		for (int j = 0; j < i_rows; j++)
+		{
+			std::cout << j << ": ";
+			// cols
+			for (int i = 0; i < i_cols; i++)
+			{
+				std::cout << i_data[j+i*i_rows] << "\t";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
+
+
+	void print_array_c(
+			const T *i_data,
+			int i_cols,
+			int i_rows
+	)
+	{
+		// rows
+		for (int j = 0; j < i_rows; j++)
+		{
+			std::cout << j << ": ";
+			// cols
+			for (int i = 0; i < i_cols; i++)
+			{
+				std::cout << i_data[j*i_cols+i] << "\t";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
 };
 
 template <typename T>
 class BandedMatrixSolver	:
-		public MatrixSolversCommon<T>
+		public BandedMatrixSolverCommon<T>
 {
 public:
 	/**
@@ -171,20 +215,24 @@ public:
 
 template <>
 class BandedMatrixSolver<std::complex<double>>	:
-		public MatrixSolversCommon<std::complex<double>>
+		public BandedMatrixSolverCommon<std::complex<double>>
 {
+	typedef std::complex<double> T;
+
 	/**
 	 * Solve for input matrix
 	 *
-	 * i_A: width: num_diagonals
-	 *      height: i_size
+	 * i_A: cols: num_diagonals
+	 *      rows: i_size
+	 *
+	 * The Fortran array will be transposed and with a size of (rows: LDAB, cols: i_size)
 	 *
 	 * i_b: RHS of equation
 	 *
 	 * o_x: Solution
 	 */
 public:
-	void solve_diagBandedInverse_C(
+	void solve_diagBandedInverse_Carray(
 		const std::complex<double>* i_A,
 		const std::complex<double>* i_b,
 		std::complex<double>* o_x,
@@ -193,71 +241,146 @@ public:
 	{
 		assert(max_N >= i_size);
 
-		// zero everything
-		for (std::size_t j = 0; j < i_size; j++)
-			for (int i = 0; i < num_diagonals; i++)
-				o_x[j*num_diagonals+i] = std::complex<double>(0);
-
 #if 0
-		for (std::size_t idx = 0; idx < i_size; idx++)
-		{
-			o_x[idx] = i_b[idx]/i_A[idx*num_diagonals+num_halo_size_diagonals];
-		}
-#else
-		/*
-		 * Convert to Fortran storage array
+		/**
+		 * WARNING: LEAVE THIS BLOCK FOR DEBUGGING PURPOSE!!!
+		 *
+		 * 1) Decodes the compact stored matrix A into a full NxN matrix.
+		 * 2) Convert to Fortran storage format
+		 * 3) convert to LAPACK general band matrix format
 		 */
-#ifndef NDEBUG
-		//std::cout << "num_diagonals: " << num_diagonals << std::endl;
-		for (int i = 0; i < LDAB*i_size; i++)
-			AB[i] = 666.0;
-#endif
-		assert(max_N >= i_size);
+		std::cout << "C ARRAY: A compactified" << std::endl;
+		print_array_c(i_A, num_diagonals, i_size);
 
-		// c columns / fortran rows
+		T *fortran_A = new T[i_size*i_size];
+
+		for (int i = 0; i < i_size*i_size; i++)
+			fortran_A[i] = std::numeric_limits<double>::infinity();
+
+		// source c cols
 		for (int i = 0; i < num_diagonals; i++)
 		{
-			// c rows / fortran columns
+			// source c rows
 			for (int j = 0; j < i_size; j++)
 			{
-				// AB is LDAB large!
-				assert(LDAB*max_N > i*i_size+j);
+				int di = j+i-num_halo_size_diagonals;
 
-				// note, that the array is upside-down
-				//AB[j*LDAB + (LDAB-i-1)] = i_A[j*num_diagonals + i];
-				AB[j*LDAB + (LDAB-(num_diagonals-i-1)-1)] = i_A[j*num_diagonals + i];
+				if (di < 0 || di >= i_size)
+					continue;
+
+				int dj = j;
+				fortran_A[di*i_size+dj] = i_A[j*num_diagonals+i];
 			}
 		}
+
+		std::cout << "FORTRAN ARRAY: A expanded" << std::endl;
+		print_array_fortran(fortran_A, i_size, i_size);
+
+		for (int i = 0; i < i_size*LDAB; i++)
+			AB[i] = std::numeric_limits<double>::infinity();
+
+		for (int i = 0; i < i_size; i++)
+		{
+			int fi = i+1;
+
+			// columns for output fortran array
+			for (int j = 0; j < i_size; j++)
+			{
+				int fj = j+1;
+
+				if (std::max(1, fj-num_halo_size_diagonals) <= fi && fi <= std::min(i_size, fj+num_halo_size_diagonals))
+					AB[(num_diagonals+fi-fj)-1 + (fj-1)*LDAB] = fortran_A[i+j*i_size];
+			}
+		}
+
+
+		std::cout << "FORTRAN ARRAY: A compactified" << std::endl;
+		print_array_fortran(AB, i_size, LDAB);
+
 
 #if 1
-		std::cout << "*** A MATRIX IN FORTRAN FORMAT ***" << std::endl;
-		for (int i = 0; i < LDAB; i++)
-		{
-			for (int j = 0; j < i_size; j++)
-			{
-				std::cout << AB[j*LDAB + i] << "\t";
-			}
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
-#endif
-		solve_diagBandedInverse_Fortran_largeA(AB, i_b, o_x, i_size);
+		for (int i = 0; i < i_size*LDAB; i++)
+			AB[i] = std::numeric_limits<double>::infinity();
 
+		// columns for output fortran array
+		// rows for input c array
+		for (int j = 0; j < i_size; j++)
+		{
+			// rows for output fortran array
+			// columns for input c array
+			for (int i = 0; i < num_diagonals; i++)
+			{
+				// compute square matrix indices
+				int si = j+(num_halo_size_diagonals-i);
+				int sj = j;
+
+//				std::cout << sj << " " << si << std::endl;
+
+				if (si < 0 || si >= i_size)
+					continue;
+
+
+				// AB is LDAB large!
+				assert(LDAB*max_N > i*i_size+j);
+				assert(LDAB*max_N > i+j*num_diagonals);
+
+				AB[(num_diagonals+si-sj-1) + sj*LDAB] = i_A[(j-i+num_halo_size_diagonals)*num_diagonals + i];
+			}
+		}
 #endif
+
+		delete fortran_A;
+
+		std::cout << "FORTRAN ARRAY: A compactified (alternative, should match previous one)" << std::endl;
+		print_array_fortran(AB, i_size, LDAB);
+
+#else
+
+#ifndef NDEBUG
+		for (int i = 0; i < i_size*LDAB; i++)
+			AB[i] = std::numeric_limits<double>::infinity();
+#endif
+
+		// columns for output fortran array
+		// rows for input c array
+		for (int j = 0; j < i_size; j++)
+		{
+			// rows for output fortran array
+			// columns for input c array
+			for (int i = 0; i < num_diagonals; i++)
+			{
+				// compute square matrix indices
+				int si = j+(num_halo_size_diagonals-i);
+				int sj = j;
+
+//				std::cout << sj << " " << si << std::endl;
+
+				if (si < 0 || si >= i_size)
+					continue;
+
+
+				// AB is LDAB large!
+				assert(LDAB*max_N > i*i_size+j);
+				assert(LDAB*max_N > i+j*num_diagonals);
+
+				AB[(num_diagonals+si-sj-1) + sj*LDAB] = i_A[(j-i+num_halo_size_diagonals)*num_diagonals + i];
+			}
+		}
+#endif
+
+		solve_diagBandedInverse_FortranArray(AB, i_b, o_x, i_size);
 	}
 
 
+
 public:
-	void solve_diagBandedInverse_Fortran_largeA(
+	void solve_diagBandedInverse_FortranArray(
 		const std::complex<double>* i_A,	///< A of max size
 		const std::complex<double>* i_b,
 		std::complex<double>* o_x,
 		int i_size
 	)
 	{
-		assert(num_diagonals & 1 == 1);
-		assert(AB != nullptr);
-
 		/*
 		 * Make a copy of the array data since this is a destructive function
 		 */
@@ -266,7 +389,21 @@ public:
 
 		memcpy((void*)o_x, (const void*)i_b, sizeof(std::complex<double>)*i_size);
 
-		int one = 1;
+		solve_diagBandedInverse_FortranArray_inplace(AB, o_x, i_size);
+	}
+
+
+
+public:
+	void solve_diagBandedInverse_FortranArray_inplace(
+		std::complex<double>* io_A,		///< A of max size
+		std::complex<double>* io_b_x,	///< rhs and solution x
+		int i_size
+	)
+	{
+		assert(num_diagonals & 1 == 1);
+		assert(AB != nullptr);
+
 		int info;
 
 #if 0
@@ -280,11 +417,11 @@ public:
 				i_size,				// number of linear equations
 				num_halo_size_diagonals,	// number of subdiagonals
 				num_halo_size_diagonals,	// number of superdiagonals
-				one,				// number of columns of matrix B
-				AB,					// array with matrix A to solve for
+				1,				// number of columns of matrix B
+				io_A,				// array with matrix A to solve for
 				LDAB,				// leading dimension of matrix A
 				IPIV,				// integer array for pivoting
-				o_x,				// output array
+				io_b_x,				// output array
 				i_size,				// leading dimension of array o_x
 				info
 			);
@@ -296,16 +433,40 @@ public:
 			exit(1);
 		}
 
-#if 1
-		bool bvalue = false;
-		zlapmt_(
+#if 0
+		std::cout << std::endl;
+		for (int i = 0; i < i_size; i++)
+			std::cout << IPIV[i] << ", ";
+		std::cout << std::endl;
+
+		std::cout << std::endl;
+		for (int i = 0; i < i_size; i++)
+			std::cout << o_x[i] << ", ";
+		std::cout << std::endl;
+#endif
+
+#if 0
+		/**
+		 * TODO: This shouldn't be required since the solution is directly computed.
+		 *
+		 * TODO: Check pivotization
+		 */
+		int bvalue = true;
+		zlapmr_(
 				bvalue,	// true = forward permutation
-				i_size,	// rows
-				one,		// cols
-				o_x,
-				i_size,		// leading dimension
+				one,	// rows
+				i_size,	// cols
+				o_x,	// data
+				i_size,	// leading dimension
 				IPIV
 			);
+#endif
+
+#if 0
+		std::cout << std::endl;
+		for (int i = 0; i < i_size; i++)
+			std::cout << o_x[i] << ", ";
+		std::cout << std::endl;
 #endif
 	}
 

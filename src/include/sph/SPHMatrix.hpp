@@ -16,7 +16,7 @@
 /**
  * Matrix to store coefficients related to Spherical Harmonics
  */
-template <typename T = double>
+template <typename T>
 class SPHMatrix
 {
 	/**
@@ -102,7 +102,7 @@ public:
 			int m		///< row related to P Fourier mode n
 	)
 	{
-		std::size_t idx = sphConfig->getPIndexByModes(n, m);
+		std::size_t idx = sphConfig->getArrayIndexByModes(n, m);
 		return data+idx*num_diagonals;
 	}
 
@@ -111,16 +111,16 @@ public:
 
 
 	/**
-	 * Set an element in the row to the specified value
+	 * Return reference to an element in the row to the specified value
 	 */
-	T &getRefRowElement(
+	const T &rowElement_getRef(
 			T *io_row,		///< pointer to current row
 			int i_row_n,	///< row related to P Legendre mode n
 			int i_row_m,	///< row related to P Fourier mode n
 			int rel_n		///< Relative Legendre mode n (e.g. -1 or +2)
 	)
 	{
-		static T dummy;
+		static T dummy = 0;
 
 		if (i_row_n < i_row_m)
 			return dummy;
@@ -141,6 +141,68 @@ public:
 		return io_row[idx];
 	}
 
+
+
+	/**
+	 * Return reference to an element in the row to the specified value
+	 */
+	void rowElement_set(
+			T *io_row,		///< pointer to current row
+			int i_row_n,	///< row related to P Legendre mode n
+			int i_row_m,	///< row related to P Fourier mode n
+			int rel_n,		///< Relative Legendre mode n (e.g. -1 or +2)
+			T i_value
+	)
+	{
+		if (i_row_n < i_row_m)
+			return;
+
+//		assert(i_row_n >= i_row_m);
+		assert(i_row_m >= 0);
+		assert(i_row_m <= sphConfig->spec_m_max);
+
+		int n = i_row_n+rel_n;
+
+		if (n < 0 || n < i_row_m || n > sphConfig->spec_n_max)
+			return;
+
+		int idx = rel_n + halosize_off_diagonal;
+
+		assert(idx >= 0 && idx < num_diagonals);
+
+		io_row[idx] = i_value;
+	}
+
+
+	/**
+	 * Return reference to an element in the row to the specified value
+	 */
+	void rowElement_add(
+			T *io_row,		///< pointer to current row
+			int i_row_n,	///< row related to P Legendre mode n
+			int i_row_m,	///< row related to P Fourier mode n
+			int rel_n,		///< Relative Legendre mode n (e.g. -1 or +2)
+			T i_value
+	)
+	{
+		if (i_row_n < i_row_m)
+			return;
+
+//		assert(i_row_n >= i_row_m);
+		assert(i_row_m >= 0);
+		assert(i_row_m <= sphConfig->spec_m_max);
+
+		int n = i_row_n+rel_n;
+
+		if (n < 0 || n < i_row_m || n > sphConfig->spec_n_max)
+			return;
+
+		int idx = rel_n + halosize_off_diagonal;
+
+		assert(idx >= 0 && idx < num_diagonals);
+
+		io_row[idx] += i_value;
+	}
 
 
 	void shutdown()
@@ -219,9 +281,53 @@ public:
 		}
 	}
 
+	void print_mblock(int m)
+	{
+//		std::size_t idx = 0;
+//		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			std::size_t idx = sphConfig->getArrayIndexByModes(m, m);
+			std::cout << "Meridional block M=" << m << " with N=[" << m << ", " << sphConfig->spec_n_max << "]" << std::endl;
+
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				if (n == m)
+				{
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << hn;
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+					std::cout << std::endl;
+					for (int hn = n-halosize_off_diagonal; hn < n+halosize_off_diagonal+1; hn++)
+					{
+						std::cout << "*******";
+						if (hn != n+halosize_off_diagonal)
+							std::cout << "\t";
+					}
+					std::cout << std::endl;
+				}
+
+				for (int i = 0; i < num_diagonals; i++)
+				{
+					std::cout << data[idx*num_diagonals+i];
+					if (i != num_diagonals-1)
+						std::cout << "\t";
+				}
+				std::cout << std::endl;
+
+				idx++;
+			}
+		}
+	}
+
+
 
 	void printFortran()
 	{
+		assert(fortran_data != nullptr);
+
 		std::size_t idx = 0;
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{

@@ -359,7 +359,7 @@ public:
 #pragma omp parallel for
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
-			std::size_t idx = sphConfig->getPIndexByModes(m, m);
+			std::size_t idx = sphConfig->getArrayIndexByModes(m, m);
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				i_lambda(n, m, data_spec[idx]);
@@ -452,9 +452,35 @@ public:
 		o_mode_scalar = data_spec[LiM(sphConfig->shtns, in, im)];
 	}
 
+	const std::complex<double>& spec_get(
+			int in,
+			int im
+	)	const
+	{
+		static const std::complex<double> zero = {0,0};
+
+		assert(data_spec_valid);
+
+		if (in < 0 ||  im < 0)
+			return zero;
+
+		if (in > sphConfig->spec_n_max)
+			return zero;
+
+		if (im > sphConfig->spec_m_max)
+			return zero;
+
+		if (im > in)
+			return zero;
 
 
-	void spec_getElement(
+		assert (im <= sphConfig->spec_m_max);
+		return data_spec[LiM(sphConfig->shtns, in, im)];
+	}
+
+
+#if 0
+	void spec_getElement_enum(
 			int n,
 			int m,
 			std::complex<double> &o_mode_scalar
@@ -475,9 +501,9 @@ public:
 			return;
 		}
 
-		o_mode_scalar = data_spec[sphConfig->getPIndexByModes(n, m)];
+		o_mode_scalar = data_spec[sphConfig->getArrayIndexByModes(n, m)];
 	}
-
+#endif
 
 
 	/*
@@ -650,7 +676,7 @@ public:
 
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
-			std::size_t idx = sphConfig->getPIndexByModes(m, m);
+			std::size_t idx = sphConfig->getArrayIndexByModes(m, m);
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				std::cout << data_spec[idx] << "\t";
@@ -660,7 +686,7 @@ public:
 		}
 	}
 
-	void print(int i_precision = 8)	const
+	void spat_print(int i_precision = 8)	const
 	{
 		request_data_spatial();
 

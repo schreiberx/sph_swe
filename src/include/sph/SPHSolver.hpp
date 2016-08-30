@@ -36,7 +36,7 @@ public:
 	/**
 	 * Solver for banded matrix
 	 */
-	BandedMatrixSolver<T> bandedMatrixSolver;
+	BandedMatrixSolver< std::complex<double> > bandedMatrixSolver;
 
 
 	/**
@@ -62,7 +62,7 @@ public:
 	 * 	a*phi(lambda,mu)
 	 */
 	void solver_component_scalar_phi(
-			std::complex<double> &i_value
+			const std::complex<double> &i_value
 	)
 	{
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
@@ -70,7 +70,7 @@ public:
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.getRefRowElement(row, n, m, 0) += i_value;
+				lhs.rowElement_add(row, n, m, 0, i_value);
 			}
 		}
 	}
@@ -88,8 +88,8 @@ public:
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.getRefRowElement(row, n, m, -1) += R(n-1,m);
-				lhs.getRefRowElement(row, n, m, +1) += S(n+1,m);
+				lhs.rowElement_add(row, n, m, -1, R(n-1,m));
+				lhs.rowElement_add(row, n, m, +1, S(n+1,m));
 			}
 		}
 	}
@@ -108,13 +108,12 @@ public:
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.getRefRowElement(row, n, m, -2) += R(n-1,m)*R(n-2,m);
-				lhs.getRefRowElement(row, n, m,  0) += R(n-1,m)*S(n,m) + S(n+1,m)*R(n,m);
-				lhs.getRefRowElement(row, n, m, +2) += S(n+1,m)*S(n+2,m);
+				lhs.rowElement_add(row, n, m, -2, R(n-1,m)*R(n-2,m));
+				lhs.rowElement_add(row, n, m,  0, R(n-1,m)*S(n,m) + S(n+1,m)*R(n,m));
+				lhs.rowElement_add(row, n, m, +2, S(n+1,m)*S(n+2,m));
 			}
 		}
 	}
-
 
 
 
@@ -129,13 +128,49 @@ public:
 			for (int n = m; n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.getRefRowElement(row, n, m, -1) += (-(double)n+1.0)*R(n-1,m);
-				lhs.getRefRowElement(row, n, m, +1) += ((double)n+2.0)*S(n+1,m);
+				lhs.rowElement_add(row, n, m, -1, (-(double)n+1.0)*R(n-1,m));
+				lhs.rowElement_add(row, n, m, +1, ((double)n+2.0)*S(n+1,m));
 			}
 		}
 //		lhs.print();
 	}
 
+
+	/**
+	 * Apply the solver matrix.
+	 * This function is intended to be used for debugging.
+	 * WARNING: This only multiplies the i_x values with the matrix.
+	 * Use solve(...) to solve for the matrix
+	 */
+	SPHData apply(
+			const SPHData &i_x	///< solution to be searched
+	)
+	{
+		SPHData out(sphConfig);
+
+		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		{
+			std::size_t idx = sphConfig->getArrayIndexByModes(m, m);
+			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			{
+				out.data_spec[idx] = 0;
+
+				std::complex<double> *row = lhs.getMatrixRow(n, m);
+				for (int i = 0; i < lhs.num_diagonals; i++)
+				{
+					int delta = i-lhs.halosize_off_diagonal;
+					out.data_spec[idx] += lhs.rowElement_getRef(row, n, m, delta)*i_x.spec_get(n+delta, m);
+				}
+
+				idx++;
+			}
+		}
+
+		out.data_spat_valid = false;
+		out.data_spec_valid = true;
+
+		return out;
+	}
 
 
 	SPHData solve(
@@ -148,43 +183,16 @@ public:
 
 		for (int m = 0; m <= sphConfig->spec_m_max; m++)
 		{
-			int idx = sphConfig->getPIndexByModes(m,m);
+			int idx = sphConfig->getArrayIndexByModes(m,m);
 
-			bandedMatrixSolver.solve_diagBandedInverse_C(
+			bandedMatrixSolver.solve_diagBandedInverse_Carray(
 							&lhs.data[idx*lhs.num_diagonals],
 							&i_rhs.data_spec[idx],
 							&out.data_spec[idx],
-							sphConfig->spec_n_max-m+1	// size of block
+							sphConfig->spec_n_max+1-m	// size of block
 					);
 		}
-#if 0
 
-		std::size_t idx = 0;
-
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
-		{
-			int test_idx = sphConfig->getPIndexByModes(m,m);
-
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
-			{
-				T accum = T(0);
-				int hn = n-inv_lhs.halosize_off_diagonal;
-
-				for (int i = 0; i < inv_lhs.num_diagonals; i++)
-				{
-					T &matrix_scalar = inv_lhs.data[idx*inv_lhs.num_diagonals+i];
-					T value;
-					i_rhs.spec_getElement(hn, m, value);
-
-					accum += matrix_scalar*value;
-					hn++;
-				}
-
-				out.data_spec[idx] = accum;
-				idx++;
-			}
-		}
-#endif
 		out.data_spec_valid = true;
 		out.data_spat_valid = false;
 

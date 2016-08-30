@@ -153,7 +153,6 @@ public:
 				std::cout << " ||| Error: " << error_max << std::endl;
 			}
 
-
 			/*
 			 * Test Zx = (1-mu*mu)*d/dmu Phi(lam,mu) + a*Phi(lam,mu)
 			 */
@@ -162,37 +161,27 @@ public:
 				std::cout << "Test Zx = (1-mu*mu)*d/dmu Phi(lam,mu) + a*Phi(lam,mu)";
 
 				SPHSolver<std::complex<double>> sphSolver;
-				sphSolver.setup(sphConfig, 1);
+				sphSolver.setup(sphConfig, 2);
 
-				sphSolver.solver_component_scalar_phi(scalar_a);
+				std::complex<double> a(scalar_a.real());
+				sphSolver.solver_component_scalar_phi(a);
 				sphSolver.solver_component_one_minus_mu_mu_diff_mu_phi();
-//				sphSolver.lhs.print();
 
 				SPHData b(i_sphConfig);
 				b.spat_update_lambda_gaussian_grid(
 						[&](double lat, double mu, double &io_data)
 						{
 							double phi;
-							testSolutions.test_function__grid_gaussian(lat,mu,phi);
+							testSolutions.test_function__grid_gaussian(lat, mu, phi);
 
 							double om_dphi;
-							testSolutions.correct_result_one_minus_mu_squared_diff_lat_mu__grid_gaussian(lat,mu,om_dphi);
+							testSolutions.correct_result_one_minus_mu_squared_diff_lat_mu__grid_gaussian(lat, mu, om_dphi);
 
 							io_data = om_dphi + scalar_a.real()*phi;
 						}
 				);
 
 				SPHData x_numerical = sphSolver.solve(b);
-
-
-				x_numerical.spat_write_file("O_numerical.csv");
-				x_result.spat_write_file("O_result.csv");
-				(x_result-x_numerical).spat_write_file("O_diff.csv");
-
-				std::cout << std::endl;
-				std::cout << "SPECTRAL DIFFERENCE" << std::endl;
-				(x_result-x_numerical).spec_print();
-				std::cout << std::endl;
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;

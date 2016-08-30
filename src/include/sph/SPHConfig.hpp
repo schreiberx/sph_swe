@@ -93,7 +93,7 @@ public:
 	}
 
 
-	std::size_t getPIndexByModes(
+	std::size_t getArrayIndexByModes(
 			int n,
 			int m
 	)	const
@@ -128,11 +128,11 @@ private:
 			for (int m = 0; m <= spec_m_max; m++)
 			{
 
-				int test_idx = getPIndexByModes(m,m);
+				int test_idx = getArrayIndexByModes(m,m);
 
 				for (int n = m; n <= spec_n_max; n++)
 				{
-					int test_idx = getPIndexByModes(n,m);
+					int test_idx = getArrayIndexByModes(n,m);
 
 					if (test_idx != idx)
 					{

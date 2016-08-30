@@ -116,6 +116,17 @@ public:
 			const SPHData &i_sph_data
 	)	const
 	{
+
+#if 1
+		SPHData out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+
+		out_sph_data.spat_update_lambda_gaussian_grid(
+				[this](double lambda, double mu, double &o_data)
+				{
+					o_data /= (1.0-mu*mu);
+				}
+		);
+#else
 		SPHData out_sph_data = grad_lat(i_sph_data);
 
 		out_sph_data.spat_update_lambda_gaussian_grid(
@@ -124,7 +135,7 @@ public:
 					o_data /= sqrt(1.0-mu*mu);
 				}
 		);
-
+#endif
 		return out_sph_data;
 	}
 
@@ -196,25 +207,10 @@ public:
 			int ni = sphConfig->shtns->li[idx];
 			int mi = sphConfig->shtns->mi[idx];
 
-			std::complex<double> P0, P2;
-			i_sph_data.spec_getElement_im_in(ni-1, mi, P0);
-			i_sph_data.spec_getElement_im_in(ni+1, mi, P2);
-
-#if 1
-			out_sph_data.data_spec[idx] =	((-ni+1.0)*R(ni-1,mi))*P0 +
-											((ni+2.0)*S(ni+1,mi))*P2;
-#else
-			// from SHTNS - sht_func.c
-			/*
-			 * A minus sign shows up here due to the colatitude
-			 */
-			out_sph_data.data_spec[idx] = -(
-										  (ni - 1.0)*sqrt((ni*ni-mi*mi)/(4.0*ni*ni-1.0))*P0
-										+ (-ni - 2.0)*sqrt(((ni+1.0)*(ni+1.0)-mi*mi)/((2.0*ni+1.0)*(2.0*ni+3.0)))*P2
-									);
-#endif
-
+			out_sph_data.data_spec[idx] =	((-ni+1.0)*R(ni-1,mi))*i_sph_data.spec_get(ni-1, mi) +
+											((ni+2.0)*S(ni+1,mi))*i_sph_data.spec_get(ni+1, mi);
 		}
+
 		out_sph_data.data_spec_valid = true;
 		out_sph_data.data_spat_valid = false;
 
