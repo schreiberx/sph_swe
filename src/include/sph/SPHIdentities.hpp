@@ -39,7 +39,7 @@ public:
 //			n = -n-1;
 		if (n < 0)
 			return 0;
-		if (n < m)
+		if (n < std::abs(m))
 			return 0;
 		if (n*n-m*m < 0)
 			return 0;
@@ -56,7 +56,7 @@ public:
 //			n = -n-1;
 		if (n < 0)
 			return 0;
-		if (n < m)
+		if (n < std::abs(m))
 			return 0;
 		if (n*n-m*m < 0)
 			return 0;

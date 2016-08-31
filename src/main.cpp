@@ -24,7 +24,9 @@
 
 #include "AppSWE.hpp"
 #include "AppTestSPHOperators.hpp"
+#include "AppTestSPHOperatorsComplex.hpp"
 #include "AppTestSPHSolver.hpp"
+#include "AppTestSPHSolverComplex.hpp"
 #include "AppOutputSphericalHarmonics.hpp"
 
 
@@ -200,7 +202,17 @@ int main(
 		AppTestSPHOperators test_operators; test_operators.run(&sphConfig);
 	}
 
+
 	else if (simVars.program_id == 2)
+	{
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppTestSPHOperatorsComplex" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
+		AppTestSPHOperatorsComplex test_operators; test_operators.run(&sphConfig);
+	}
+
+	else if (simVars.program_id == 3)
 	{
 		std::cout << "************************************************" << std::endl;
 		std::cout << "AppTestSPHSolvers" << std::endl;
@@ -209,7 +221,16 @@ int main(
 		AppTestSPHSolvers test_operators; test_operators.run(&sphConfig);
 	}
 
-	else if (simVars.program_id == 3)
+	else if (simVars.program_id == 4)
+	{
+		std::cout << "************************************************" << std::endl;
+		std::cout << "AppTestSPHSolversComplex" << std::endl;
+		std::cout << "************************************************" << std::endl;
+
+		AppTestSPHSolversComplex test_operators; test_operators.run(&sphConfig);
+	}
+
+	else if (simVars.program_id == 5)
 	{
 		std::cout << "************************************************" << std::endl;
 		std::cout << "AppOutputSphericalHarmonics" << std::endl;

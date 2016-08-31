@@ -15,12 +15,16 @@
 #include <sph/SPHDataComplex.hpp>
 #include <sph/SPHSolver.hpp>
 
+#include "SWERexiSPH.hpp"
+
 
 class AppSWE
 {
 public:
 	SimVars &simVars;
 	SPHOperators op;
+	SPHOperatorsComplex opComplex;
+
 	SPHConfig *sphConfig;
 
 	// Runge-Kutta stuff
@@ -57,7 +61,6 @@ public:
 		simVars(i_simVars),
 		benchmarkGalewsky(i_simVars)
 	{
-		op.setup(i_sphConfig);
 	}
 
 
@@ -251,36 +254,49 @@ public:
 			SPHSolver<double> sphSolver;
 			sphSolver.setup(sphConfig, 4);
 
-
 			rexi.setup(0.2, 256);
 
 			// convert to geopotential
-			SPHData phi0 = prog_h*simVars.gravitation;
-			SPHData u0 = prog_u;
-			SPHData v0 = prog_v;
+			const SPHData phi0 = prog_h*simVars.gravitation;
+			const SPHData &u0 = prog_u;
+			const SPHData &v0 = prog_v;
 
-			SPHData h_accum(prog_h.sphConfig);
-			SPHData u_accum(prog_h.sphConfig);
-			SPHData v_accum(prog_h.sphConfig);
-			h_accum.spat_set_zero();
-			u_accum.spat_set_zero();
-			v_accum.spat_set_zero();
+			SPHData phi1(phi0.sphConfig);
+			SPHData u1(u0.sphConfig);
+			SPHData v1(v0.sphConfig);
 
-			SPHDataComplex div0(op.div(u0, v0));
-			SPHDataComplex vort0(op.vort(u0, v0));
-			SPHDataComplex phi0c(phi0);
-			SPHDataComplex fdatac(fdata);
+			phi1.spec_set_zero();
+			u1.spec_set_zero();
+			v1.spec_set_zero();
 
-			//SPHDataComplex Fc;
+			SPHData tmp_phi1(phi0.sphConfig);
+			SPHData tmp_u1(u0.sphConfig);
+			SPHData tmp_v1(v0.sphConfig);
 
-			for (int i = 0; i < rexi.beta_re.size(); i++)
+			SWERexiSPH rexiSPH;
+			for (int i = 0; i < rexi.alpha.size(); i++)
 			{
 				std::complex<double> alpha = rexi.alpha[i];
 				std::complex<double> beta = rexi.beta_re[i];
 
-				SPHDataComplex rhs = div0 - (1.0/alpha)*fdatac*vort0 + (alpha+fdatac*fdatac*(1.0/alpha))*phi0c;
-				//rhs -= (1.0/alpha)*Fc;
-				//h_accum += ...
+				rexiSPH.setup(
+						phi0.sphConfig,
+						alpha,
+						beta,
+						simVars.earth_radius,
+						simVars.coriolis_omega
+				);
+
+				rexiSPH.solve(
+						phi0, u0, v0,
+						tmp_phi1, tmp_u1, tmp_v1,
+						opComplex,
+						simVars.timecontrol.current_timestep_size
+					);
+
+				phi1 += tmp_phi1;
+				u1 += tmp_u1;
+				v1 += tmp_v1;
 			}
 		}
 	}

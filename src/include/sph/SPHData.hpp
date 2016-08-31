@@ -9,15 +9,15 @@
 #define SPHDATA_HPP_
 
 #include <complex.h>
-#include <fftw3.h>
 #include <functional>
 #include <array>
 #include <string.h>
-#include <sweet/MemBlockAlloc.hpp>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <cassert>
+
+#include <sweet/MemBlockAlloc.hpp>
 #include "SPHConfig.hpp"
 
 
@@ -40,8 +40,13 @@ public:
 public:
 	SPHData(
 			SPHConfig *i_sphConfig
-	)
+	)	:
+		sphConfig(i_sphConfig),
+		data_spat(nullptr),
+		data_spec(nullptr)
 	{
+		assert(i_sphConfig != 0);
+
 		setup(i_sphConfig);
 	}
 
@@ -49,7 +54,10 @@ public:
 public:
 	SPHData(
 			const SPHData &i_sph_data
-	)
+	)	:
+		sphConfig(i_sph_data.sphConfig),
+		data_spat(nullptr),
+		data_spec(nullptr)
 	{
 		setup(i_sph_data.sphConfig);
 
@@ -92,6 +100,7 @@ public:
 		this_var->data_spat_valid = false;
 		this_var->data_spec_valid = true;
 	}
+
 
 	void request_data_spatial()	const
 	{
@@ -228,8 +237,9 @@ public:
 	}
 
 
+
 	SPHData operator*(
-			double i_value
+			const double i_value
 	)	const
 	{
 		request_data_spectral();
@@ -275,7 +285,7 @@ public:
 
 		SPHData out_sph_data(*this);
 
-		out_sph_data.data_spec[0] += i_value*SHnormfac(0, 0);
+		out_sph_data.data_spec[0] += i_value*std::sqrt(4.0*M_PI);
 
 		out_sph_data.data_spec_valid = true;
 		out_sph_data.data_spat_valid = false;
@@ -296,9 +306,6 @@ private:
 
 		data_spat = MemBlockAlloc::alloc<double>(sphConfig->spat_num_elems * sizeof(double));
 		data_spec = MemBlockAlloc::alloc<cplx>(sphConfig->spec_num_elems * sizeof(cplx));
-
-		//data_spat = (double *) fftw_malloc(sphConfig->spat_num_elems * sizeof(double));
-		//data_spec = (std::complex<double> *) fftw_malloc(sphConfig->spec_num_elems * sizeof(cplx));
 	}
 
 
@@ -307,8 +314,6 @@ public:
 	{
 		MemBlockAlloc::free(data_spat, sphConfig->spat_num_elems * sizeof(double));
 		MemBlockAlloc::free(data_spec, sphConfig->spec_num_elems * sizeof(cplx));
-		//fftw_free(data_spat);
-		//fftw_free(data_spec);
 	}
 
 
@@ -373,37 +378,6 @@ public:
 
 
 
-	static double fac_double(double v)
-	{
-		double retval = 1;
-	    for (double i = 1; i <= v; ++i)
-	    	retval *= i;
-	    return retval;
-	}
-
-
-	static double Pnormfac(double n, double m)
-	{
-		if (n < 0)
-			n = -n-1;
-
-		if (n >= m)
-			return std::sqrt(2.0*fac_double(n+m)/((2.0*n+1.0)*(fac_double(n-m))));
-		else
-			return 1.0;		// avoid div/0
-	}
-
-	static double SHnormfac(double n, double m)
-	{
-		if (n < 0)
-			n = -n-1;
-
-		if (n >= m)
-			return std::sqrt(4.0*M_PI*fac_double(n+m)/((2.0*n+1.0)*(fac_double(n-m))));
-		else
-			return 1.0;		// avoid div/0
-	}
-
 	bool isAnyNaNorInf()
 	{
 		for (int i = 0; i < sphConfig->spat_num_elems; i++)
@@ -415,42 +389,6 @@ public:
 		return false;
 	}
 
-	void spec_getElement_im_in(
-			int in,
-			int im,
-			std::complex<double> &o_mode_scalar
-	)	const
-	{
-		assert(data_spec_valid);
-
-		if (in < 0 ||  im < 0)
-		{
-			o_mode_scalar = {0,0};
-			return;
-		}
-
-		if (in > sphConfig->spec_n_max)
-		{
-			o_mode_scalar = {0,0};
-			return;
-		}
-
-		if (im > sphConfig->spec_m_max)
-		{
-			o_mode_scalar = {0,0};
-			return;
-		}
-
-		if (im > in)
-		{
-			o_mode_scalar = {0,0};
-			return;
-		}
-
-
-		assert (im <= sphConfig->spec_m_max);
-		o_mode_scalar = data_spec[LiM(sphConfig->shtns, in, im)];
-	}
 
 	const std::complex<double>& spec_get(
 			int in,
@@ -473,9 +411,8 @@ public:
 		if (im > in)
 			return zero;
 
-
 		assert (im <= sphConfig->spec_m_max);
-		return data_spec[LiM(sphConfig->shtns, in, im)];
+		return data_spec[sphConfig->getArrayIndexByModes(in, im)];
 	}
 
 
@@ -662,6 +599,26 @@ public:
 						std::abs(
 								data_spat[j] - i_sph_data.data_spat[j]
 							)
+						);
+		}
+		return error;
+	}
+
+
+	/**
+	 * Return the maximum error norm
+	 */
+	double spat_reduce_error_max()
+	{
+		request_data_spatial();
+
+		double error = -1;
+
+		for (int j = 0; j < sphConfig->spat_num_elems; j++)
+		{
+			error = std::max(
+						error,
+						std::abs(data_spat[j])
 						);
 		}
 		return error;

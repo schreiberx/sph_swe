@@ -18,6 +18,7 @@
 class SPHConfig
 {
 	friend class SPHOperators;
+	friend class SPHOperatorsComplex;
 	friend class SPHData;
 	friend class SPHDataComplex;
 
@@ -56,7 +57,8 @@ public:
 	int spec_num_elems;
 
 	/**
-	 * Number of elements for complex-valued spatial data
+	 * Number of elements for SPH which is based on
+	 * complex-valued spatial data
 	 */
 	int cplx_spec_num_elems;
 
@@ -99,10 +101,52 @@ public:
 			int m
 	)	const
 	{
+		assert(n >= 0);
+		assert(n >= m);
+
 //		return (spec_n_max-im)*im + ((im+1)*im)/2+l;
 		return (m*(2*spec_n_max-m+1)>>1)+n;
 	}
 
+
+
+	std::size_t getArrayIndexByModes_Complex(
+			int n,
+			int m
+	)	const
+	{
+		assert(n >= 0);
+		assert(n >= std::abs(m));
+
+		int idx = n*n+(m+n);
+		return idx;
+	}
+
+
+	/**
+	 * Return indices with N-variables compactly stored
+	 */
+	std::size_t getArrayIndexByModes_Complex_NCompact(
+			int n,
+			int m
+	)	const
+	{
+		assert(n >= 0);
+		assert(n >= std::abs(m));
+
+		if (m < 0)
+		{
+			int minc = spec_m_max+m;
+			int row_idx = (((minc-1)*minc)>>1) + minc;
+			int idx =  row_idx + (n+m);
+			return idx;
+		}
+		else
+		{
+			int rel_idx = (m*(2*spec_n_max-m+1)>>1)+n;
+			return ((spec_n_max*(spec_n_max+1))>>1)+rel_idx;
+		}
+	}
 
 
 private:
@@ -117,12 +161,19 @@ private:
 		spec_num_elems = shtns->nlm;
 		cplx_spec_num_elems = (spec_n_max+1)*(spec_n_max+1);
 
+		if (spec_n_max != spec_m_max)
+		{
+			std::cerr << "only spec_n_max == spec_m_max currently supported!" << std::endl;
+			assert(false);
+			exit(1);
+		}
+
 		/**
 		 * Some safety checks to make sure that we really get what we've asked for
 		 */
 
 		/**
-		 * TEST: iteration over the modes n,m
+		 * TEST: iteration over the modes n,m for real-valued spatial space
 		 */
 		{
 			int idx = 0;
@@ -131,16 +182,112 @@ private:
 
 				int test_idx = getArrayIndexByModes(m,m);
 
+				if (test_idx != idx)
+				{
+					std::cerr << "IDX TEST NOT SUCCESSFUL (real-valued spatial transformation)" << std::endl;
+					std::cout << "n=" << m << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
+					exit(1);
+				}
+
 				for (int n = m; n <= spec_n_max; n++)
 				{
-					int test_idx = getArrayIndexByModes(n,m);
 
-					if (test_idx != idx)
+					int test_idx2 = getArrayIndexByModes(n,m);
+					if (test_idx2 != idx)
 					{
-						std::cerr << "IDX TEST NOT SUCCESSFUL" << std::endl;
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (real-valued spatial transformation)" << std::endl;
 						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 						exit(1);
 					}
+					idx++;
+				}
+			}
+
+			if (idx != spec_num_elems)
+			{
+				std::cerr << "INTERNAL SPH ERROR (real-valued spatial transformation)" << std::endl;
+				assert(false);
+				exit(1);
+			}
+		}
+
+		/**
+		 * TEST: iteration over the modes n,m for complex-valued spatial space
+		 *
+		 * Note: In SHTNS, the m-coefficients are compactly stored for individual n'l
+		 */
+		{
+			int idx = 0;
+			for (int n = 0; n <= spec_n_max; n++)
+			{
+				int test_idx = getArrayIndexByModes_Complex(n,-n);
+
+				if (test_idx != idx)
+				{
+					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+					std::cout << "n=" << n << ", m=" << -n << "     " << idx << ", " << test_idx << std::endl;
+					exit(1);
+				}
+
+
+				for (int m = -n; m <= n; m++)
+				{
+//					std::cout << std::endl;
+//					std::cout << "TESTING inner loop n= " << n << ", m = " << m << std::endl;
+
+					int test_idx2 = getArrayIndexByModes_Complex(n,m);
+
+					if (test_idx2 != idx)
+					{
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
+						exit(1);
+					}
+
+					idx++;
+				}
+			}
+
+
+			if (idx != cplx_spec_num_elems)
+			{
+				std::cerr << "INTERNAL SPH ERROR" << std::endl;
+				assert(false);
+				exit(1);
+			}
+		}
+
+
+		/**
+		 * TEST: iteration over the modes n,m for complex-valued spatial space
+		 *
+		 * This version tests for the n-coefficients compactly stored for individual m's
+		 */
+		{
+			int idx = 0;
+			for (int m = -spec_m_max; m <= spec_m_max; m++)
+			{
+				int test_idx = getArrayIndexByModes_Complex_NCompact(std::abs(m),m);
+
+				if (test_idx != idx)
+				{
+					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+					std::cout << "n=" << m << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
+					exit(1);
+				}
+
+
+				for (int n = std::abs(m); n <= spec_n_max; n++)
+				{
+					int test_idx2 = getArrayIndexByModes_Complex_NCompact(n,m);
+
+					if (test_idx2 != idx)
+					{
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
+						exit(1);
+					}
+
 					idx++;
 				}
 			}

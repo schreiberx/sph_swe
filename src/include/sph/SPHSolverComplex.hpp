@@ -1,15 +1,15 @@
 /*
- * SPHSolver.hpp
+ * SPHSolverComplex.hpp
  *
- *  Created on: 24 Aug 2016
+ *  Created on: 31 Aug 2016
  *      Author: martin
  */
 
-#ifndef SRC_INCLUDE_SPH_SPHSOLVER_HPP_
-#define SRC_INCLUDE_SPH_SPHSOLVER_HPP_
+#ifndef SRC_INCLUDE_SPH_SPHSOLVER_COMPLEX_HPP_
+#define SRC_INCLUDE_SPH_SPHSOLVER_COMPLEX_HPP_
 
 #include <libmath/BandedMatrixSolver.hpp>
-#include <sph/SPHMatrix.hpp>
+#include <sph/SPHMatrixComplex.hpp>
 #include <sph/SPHIdentities.hpp>
 
 
@@ -19,14 +19,14 @@
  * phi(lambda,mu) denotes the solution
  */
 template <typename T>
-class SPHSolver	:
+class SPHSolverComplex	:
 		SPHIdentities
 {
 public:
 	/**
 	 * Matrix on left-hand side
 	 */
-	SPHMatrix<T> lhs;
+	SPHMatrixComplex<T> lhs;
 
 	/**
 	 * SPH configuration
@@ -37,6 +37,11 @@ public:
 	 * Solver for banded matrix
 	 */
 	BandedMatrixSolver< std::complex<double> > bandedMatrixSolver;
+
+	/**
+	 * Buffer to compactify the N-varying for a particular M
+	 */
+	std::complex<double> *buffer_in, *buffer_out;
 
 
 	/**
@@ -53,8 +58,28 @@ public:
 		lhs.setup(sphConfig, i_halosize_offdiagonal);
 
 		bandedMatrixSolver.setup(i_sphConfig->spec_n_max+1, i_halosize_offdiagonal);
+
+		buffer_in = MemBlockAlloc::alloc< std::complex<double> >(sphConfig->spec_n_max+1);
+		buffer_out = MemBlockAlloc::alloc< std::complex<double> >(sphConfig->spec_n_max+1);
 	}
 
+
+	SPHSolverComplex()	:
+		sphConfig(nullptr),
+		buffer_in(nullptr),
+		buffer_out(nullptr)
+	{
+	}
+
+
+	~SPHSolverComplex()
+	{
+		if (buffer_in != nullptr)
+		{
+			MemBlockAlloc::free(buffer_in, sphConfig->spec_num_elems);
+			MemBlockAlloc::free(buffer_out, sphConfig->spec_num_elems);
+		}
+	}
 
 
 	/**
@@ -65,9 +90,10 @@ public:
 			const std::complex<double> &i_value
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m, 0, i_value);
@@ -83,9 +109,10 @@ public:
 	 */
 	void solver_component_mu_phi()
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m, -1, R(n-1,m));
@@ -103,16 +130,16 @@ public:
 	 */
 	void solver_component_one_minus_mu_mu_diff_mu_phi()
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m, -1, (-(double)n+1.0)*R(n-1,m));
 				lhs.rowElement_add(row, n, m, +1, ((double)n+2.0)*S(n+1,m));
 			}
 		}
-//		lhs.print();
 	}
 
 
@@ -141,9 +168,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 #if 0
@@ -170,9 +198,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 #if 0
@@ -202,9 +231,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m,  0, 1.0/(i_r*i_r)*i_scalar*T(0, m));
@@ -223,9 +253,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m,  -2, 1.0/(i_r*i_r)*i_scalar*T(0, m)*A(n-2,m));
@@ -246,9 +277,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m,  -2, -1.0/(i_r*i_r)*i_scalar*(D(n-1,m)*R(n-2,m) + (E(n,m)-3.0)*A(n-2,m)));
@@ -268,9 +300,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 				lhs.rowElement_add(row, n, m, 0, -1.0/(i_r*i_r)*i_scalar*(double)n*((double)n+1.0));
@@ -288,9 +321,10 @@ public:
 			double i_r
 	)
 	{
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
 
@@ -312,16 +346,17 @@ public:
 	 * WARNING: This only multiplies the i_x values with the matrix.
 	 * Use solve(...) to solve for the matrix
 	 */
-	SPHData apply(
-			const SPHData &i_x	///< solution to be searched
+	SPHDataComplex apply(
+			const SPHDataComplex &i_x	///< solution to be searched
 	)
 	{
-		SPHData out(sphConfig);
+		SPHDataComplex out(sphConfig);
 
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+#pragma omp parallel for
+		for (int n = 0; n <= sphConfig->spec_n_max; n++)
 		{
-			std::size_t idx = sphConfig->getArrayIndexByModes(m, m);
-			for (int n = m; n <= sphConfig->spec_n_max; n++)
+			int idx = sphConfig->getArrayIndexByModes_Complex(n, -n);
+			for (int m = -n; m <= n; m++)
 			{
 				out.data_spec[idx] = 0;
 
@@ -343,24 +378,49 @@ public:
 	}
 
 
-	SPHData solve(
-			const SPHData &i_rhs
+	SPHDataComplex solve(
+			const SPHDataComplex &i_rhs
 	)
 	{
 		i_rhs.request_data_spectral();
 
-		SPHData out(sphConfig);
+		SPHDataComplex out(sphConfig);
 
-		for (int m = 0; m <= sphConfig->spec_m_max; m++)
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
 		{
-			int idx = sphConfig->getArrayIndexByModes(m,m);
+			int idx = sphConfig->getArrayIndexByModes_Complex_NCompact(std::abs(m),m);
+
+			/*
+			 * Compactify RHS coefficients
+			 */
+			{
+				int buffer_idx = 0;
+				for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
+				{
+					buffer_in[buffer_idx] = i_rhs.data_spec[sphConfig->getArrayIndexByModes_Complex(n,m)];
+					buffer_idx++;
+				}
+			}
 
 			bandedMatrixSolver.solve_diagBandedInverse_Carray(
 							&lhs.data[idx*lhs.num_diagonals],
-							&i_rhs.data_spec[idx],
-							&out.data_spec[idx],
-							sphConfig->spec_n_max+1-m	// size of block
+							buffer_in,
+							buffer_out,
+							sphConfig->spec_n_max+1-std::abs(m)	// size of block (same as for SPHSolver)
 					);
+
+
+			/*
+			 * Compactify RHS coefficients
+			 */
+			{
+				int buffer_idx = 0;
+				for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
+				{
+					out.data_spec[sphConfig->getArrayIndexByModes_Complex(n,m)] = buffer_out[buffer_idx];
+					buffer_idx++;
+				}
+			}
 		}
 
 		out.data_spec_valid = true;

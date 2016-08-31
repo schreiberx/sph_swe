@@ -12,7 +12,6 @@
 #include <benchmarks/SphereTestSolutions_SPH.hpp>
 #include <SimVars.hpp>
 #include <sph/SPHData.hpp>
-#include <sph/SPHDataComplex.hpp>
 #include <sph/SPHOperators.hpp>
 #include <sph/SPHConfig.hpp>
 
@@ -29,8 +28,6 @@ public:
 			SPHConfig *i_sphConfig
 	)
 	{
-		op.setup(i_sphConfig);
-
 		double epsilon = 1e-10;
 
 		if (true)
@@ -81,6 +78,32 @@ public:
 						}
 				);
 
+				data = data*123.0;
+				data.spec_truncate();
+
+				SPHData data2(i_sphConfig);
+				data2.spat_update_lambda(
+						[&](double x, double y, double &io_data)
+						{
+							io_data = y*123.0;
+						}
+				);
+				data2.spec_truncate();
+
+				double error = data.spat_reduce_error_max(data2);
+				std::cout << "ERROR operator*123.0: " << error << std::endl;
+			}
+
+			if (true)
+			{
+				SPHData data(i_sphConfig);
+				data.spat_update_lambda(
+						[&](double x, double y, double &io_data)
+						{
+							io_data = y;
+						}
+				);
+
 				data = data + 100.0;
 				data.spec_truncate();
 
@@ -96,38 +119,6 @@ public:
 				double error = data.spat_reduce_error_max(data2);
 				std::cout << "ERROR operator+(double): " << error << std::endl;
 			}
-
-			if (true)
-			{
-				std::complex<double> offset(200.0, 100.0);
-
-				SPHDataComplex data(i_sphConfig);
-				data.spat_update_lambda(
-						[&](double x, double y, std::complex<double> &io_data)
-						{
-							io_data.real(x*y);
-							io_data.imag(x+y);
-						}
-				);
-
-				data = data+offset;
-				data.spec_truncate();
-
-
-				SPHDataComplex data2(i_sphConfig);
-				data2.spat_update_lambda(
-						[&](double x, double y, std::complex<double> &io_data)
-						{
-							io_data.real(x*y+offset.real());
-							io_data.imag(x+y+offset.imag());
-						}
-				);
-				data2.spec_truncate();
-
-				double error = data.spat_reduce_error_max(data2);
-				std::cout << "ERROR operator+(cplx): " << error << std::endl;
-			}
-
 
 
 			if (true)
@@ -280,6 +271,29 @@ public:
 
 				double error_max = h.spat_reduce_error_max(result);
 				std::cout << "TEST mu*() - max error: " << error_max << std::endl;
+			}
+
+			if (true)
+			{
+				// mu*mu*F(\lambda,\mu)
+				SPHData h(i_sphConfig);
+				h.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
+				);
+				h = op.mu2(h);
+				h.spat_write_file("O_mu2_sph_result.csv");
+
+				SPHData result(i_sphConfig);
+				result.spat_update_lambda_gaussian_grid(
+						[&](double lat, double mu, double &i_data){
+							testSolutions.test_function__grid_gaussian(lat, mu, i_data);
+							i_data *= mu*mu;
+						}
+				);
+				result.spat_write_file("O_mu2_correct_result.csv");
+
+				double error_max = h.spat_reduce_error_max(result);
+				std::cout << "TEST mu*mu*() - max error: " << error_max << std::endl;
 			}
 
 

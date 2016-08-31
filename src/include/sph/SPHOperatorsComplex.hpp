@@ -1,21 +1,31 @@
 /*
- * SPHOperators.hpp
+ * SPHOperatorsComplex.hpp
  *
- *  Created on: 12 Aug 2016
+ *  Created on: 31 Aug 2016
  *      Author: martin
  */
 
-#ifndef SPHOPERATORS_HPP_
-#define SPHOPERATORS_HPP_
+#ifndef SPHOPERATORS_COMPLEX_HPP_
+#define SPHOPERATORS_COMPLEX_HPP_
 
 #include <sph/SPHData.hpp>
 #include <sph/SPHIdentities.hpp>
-#include <sweet/MemBlockAlloc.hpp>
 
-class SPHOperators	:
+class SPHOperatorsComplex	:
 		public SPHIdentities
 {
 	friend SPHConfig;
+
+public:
+	void setup(
+			SPHConfig *i_sphConfig
+	)
+	{
+	}
+
+	~SPHOperatorsComplex()
+	{
+	}
 
 
 #if 0
@@ -25,14 +35,14 @@ public:
 	 *
 	 * multiply (n=1, m=0) with \Omega sqrt(8/3)
 	 */
-	SPHData coriolis(
-			const SPHData &i_sph_data,
+	SPHDataComplex coriolis(
+			const SPHDataComplex &i_sph_data,
 			double i_coriolis_frequency
 	)	const
 	{
 		// THIS IS NOT WORKING
 		assert(false);
-		SPHData out_sph_data(i_sph_data);
+		SPHDataComplex out_sph_data(i_sph_data);
 
 		out_sph_data.request_data_spectral();
 
@@ -49,21 +59,20 @@ public:
 	 *
 	 * d/d lambda f(lambda,mu)
 	 */
-	SPHData diff_lon(
-			const SPHData &i_sph_data
+	SPHDataComplex diff_lon(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		i_sph_data.request_data_spectral();
 
-		SPHData out_sph_data(i_sph_data.sphConfig);
+		SPHDataComplex out_sph_data(i_sph_data.sphConfig);
 
 		// compute d/dlambda in spectral space
 #pragma omp parallel for
-		for (int m = 0; m <= i_sph_data.sphConfig->spec_m_max; m++)
+		for (int n = 0; n <= i_sph_data.sphConfig->spec_n_max; n++)
 		{
-			int idx = i_sph_data.sphConfig->getArrayIndexByModes(m, m);
-
-			for (int n = m; n <= i_sph_data.sphConfig->spec_n_max; n++)
+			int idx = i_sph_data.sphConfig->getArrayIndexByModes_Complex(n, -n);
+			for (int m = -n; m <= n; m++)
 			{
 				out_sph_data.data_spec[idx] = i_sph_data.data_spec[idx]*std::complex<double>(0, m);
 				idx++;
@@ -84,14 +93,15 @@ public:
 	 *
 	 * sqrt(1-mu*mu)*d/dmu P_n^m = ...
 	 */
-	SPHData diff_lat_mu(
-			const SPHData &i_sph_data
+	SPHDataComplex diff_lat_mu(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
-		SPHData out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+
+		SPHDataComplex out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, double &o_data)
+				[this](double lambda, double mu, std::complex<double> &o_data)
 				{
 					o_data /= (1.0-mu*mu);
 				}
@@ -107,8 +117,8 @@ public:
 	 *
 	 * Compute d/d phi f(lambda,mu)
 	 */
-	SPHData diff_lat_phi(
-			const SPHData &i_sph_data
+	SPHDataComplex diff_lat_phi(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		return grad_lat(i_sph_data);
@@ -119,18 +129,18 @@ public:
 	/**
 	 * Compute gradient component along longitude (lambda)
 	 */
-	SPHData grad_lon(
-			const SPHData &i_sph_data
+	SPHDataComplex grad_lon(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		i_sph_data.request_data_spectral();
 
-		SPHData out_sph_data = diff_lon(i_sph_data);
+		SPHDataComplex out_sph_data = diff_lon(i_sph_data);
 
 		out_sph_data.request_data_spatial();
 
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, double &o_data)
+				[this](double lambda, double mu, std::complex<double> &o_data)
 				{
 					double cos_phi = sqrt(1.0-mu*mu);
 					o_data /= cos_phi;
@@ -152,61 +162,59 @@ public:
 #endif
 
 
-
-	SPHData spec_one_minus_mu_squared_diff_lat_mu(
-			const SPHData &i_sph_data
+	SPHDataComplex spec_one_minus_mu_squared_diff_lat_mu(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		i_sph_data.request_data_spectral();
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
 
-		SPHData out_sph_data = SPHData(sphConfig);
+		SPHDataComplex out_sph_data = SPHDataComplex(sphConfig);
 
 
 #pragma omp parallel for
-		for (int m = 0; m <= i_sph_data.sphConfig->spec_m_max; m++)
+		for (int n = 0; n <= i_sph_data.sphConfig->spec_n_max; n++)
 		{
-			int idx = i_sph_data.sphConfig->getArrayIndexByModes(m, m);
-
-			for (int n = m; n <= i_sph_data.sphConfig->spec_n_max; n++)
-			{
-				out_sph_data.data_spec[idx] =	((-n+1.0)*R(n-1,m))*i_sph_data.spec_get(n-1, m) +
-												((n+2.0)*S(n+1,m))*i_sph_data.spec_get(n+1, m);
-				idx++;
-			}
-		}
-
-		out_sph_data.data_spec_valid = true;
-		out_sph_data.data_spat_valid = false;
-
-		return out_sph_data;
-	}
-
-
-	/**
-	 * Compute
-	 * mu*F(\lambda,\mu)
-	 */
-	SPHData mu(
-			const SPHData &i_sph_data
-	)	const
-	{
-		SPHConfig *sphConfig = i_sph_data.sphConfig;
-		i_sph_data.request_data_spectral();
-
-		SPHData out_sph_data = SPHData(sphConfig);
-
-
-#pragma omp parallel for
-		for (int m = 0; m <= i_sph_data.sphConfig->spec_m_max; m++)
-		{
-			int idx = i_sph_data.sphConfig->getArrayIndexByModes(m, m);
-
-			for (int n = m; n <= i_sph_data.sphConfig->spec_n_max; n++)
+			int idx = i_sph_data.sphConfig->getArrayIndexByModes_Complex(n, -n);
+			for (int m = -n; m <= n; m++)
 			{
 				out_sph_data.data_spec[idx] =
-							R(n-1,m)*i_sph_data.spec_get(n-1, m)
-							+ S(n+1,m)*i_sph_data.spec_get(n+1, m);
+						((-n+1.0)*R(n-1,m))*i_sph_data.spec_get(n-1, m) +
+						((n+2.0)*S(n+1,m))*i_sph_data.spec_get(n+1, m);
+
+				idx++;
+			}
+		}
+
+		out_sph_data.data_spec_valid = true;
+		out_sph_data.data_spat_valid = false;
+
+		return out_sph_data;
+	}
+
+
+	/**
+	 * Compute
+	 * mu*F(\lambda,\mu)
+	 */
+	SPHDataComplex mu(
+			const SPHDataComplex &i_sph_data
+	)	const
+	{
+		SPHConfig *sphConfig = i_sph_data.sphConfig;
+		i_sph_data.request_data_spectral();
+
+		SPHDataComplex out_sph_data = SPHDataComplex(sphConfig);
+
+#pragma omp parallel for
+		for (int n = 0; n <= i_sph_data.sphConfig->spec_n_max; n++)
+		{
+			int idx = i_sph_data.sphConfig->getArrayIndexByModes_Complex(n, -n);
+			for (int m = -n; m <= n; m++)
+			{
+				out_sph_data.data_spec[idx] =
+					R(n-1,m)*i_sph_data.spec_get(n-1, m)
+					+ S(n+1,m)*i_sph_data.spec_get(n+1, m);
 
 				idx++;
 			}
@@ -222,22 +230,20 @@ public:
 	 * Compute
 	 * mu*F(\lambda,\mu)
 	 */
-	SPHData mu2(
-			const SPHData &i_sph_data
+	SPHDataComplex mu2(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
 		i_sph_data.request_data_spectral();
 
-		SPHData out_sph_data = SPHData(sphConfig);
-
+		SPHDataComplex out_sph_data = SPHDataComplex(sphConfig);
 
 #pragma omp parallel for
-		for (int m = 0; m <= i_sph_data.sphConfig->spec_m_max; m++)
+		for (int n = 0; n <= i_sph_data.sphConfig->spec_n_max; n++)
 		{
-			int idx = i_sph_data.sphConfig->getArrayIndexByModes(m, m);
-
-			for (int n = m; n <= i_sph_data.sphConfig->spec_n_max; n++)
+			int idx = i_sph_data.sphConfig->getArrayIndexByModes_Complex(n, -n);
+			for (int m = -n; m <= n; m++)
 			{
 				out_sph_data.data_spec[idx] =
 						+A(n-2,m)*i_sph_data.spec_get(n-2, m)
@@ -258,8 +264,8 @@ public:
 	/**
 	 * Compute gradient component along latitude
 	 */
-	SPHData grad_lat(
-			const SPHData &i_sph_data
+	SPHDataComplex grad_lat(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		/*
@@ -270,12 +276,12 @@ public:
 		 * 	first divide by sin(M_PI*0.5-phi) and
 		 * 	second multiply by sqrt(1-mu*mu)
 		 */
-//		SPHData out_sph_data = spec_sinD(i_sph_data);
-		SPHData out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+//		SPHDataComplex out_sph_data = spec_sinD(i_sph_data);
+		SPHDataComplex out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
 		out_sph_data.request_data_spatial();
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, double &o_data)
+				[this](double lambda, double mu, std::complex<double> &o_data)
 				{
 					double phi = asin(mu);
 
@@ -317,51 +323,13 @@ public:
 	 *
 	 * Identical to gradient operator along longitude
 	 */
-	SPHData div_lon(
-			const SPHData &i_sph_data
+	SPHDataComplex div_lon(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		return grad_lon(i_sph_data);
 	}
 
-
-#if 0
-	SPHData spec_sinD(
-			const SPHData &i_sph_data
-	)	const
-	{
-		assert(sin_mx != nullptr);
-
-		i_sph_data.request_data_spectral();
-
-		SPHData out_sph_data(i_sph_data.sphConfig);
-		SH_mul_mx(out_sph_data.sphConfig->shtns, sin_mx, i_sph_data.data_spec, out_sph_data.data_spec);
-
-		out_sph_data.data_spec_valid = true;
-		out_sph_data.data_spat_valid = false;
-
-		return out_sph_data;
-	}
-
-
-
-	SPHData spec_cos(
-			const SPHData &i_sph_data
-	)	const
-	{
-		assert(sin_mx != nullptr);
-
-		i_sph_data.request_data_spectral();
-
-		SPHData out_sph_data(i_sph_data.sphConfig);
-		SH_mul_mx(out_sph_data.sphConfig->shtns, cos_mx, i_sph_data.data_spec, out_sph_data.data_spec);
-
-		out_sph_data.data_spec_valid = true;
-		out_sph_data.data_spat_valid = false;
-
-		return out_sph_data;
-	}
-#endif
 
 
 
@@ -370,15 +338,14 @@ public:
 	 *
 	 * d(sqrt(1-mu*mu)*F)/dmu
 	 */
-	SPHData div_lat(
-			const SPHData &i_sph_data
+	SPHDataComplex div_lat(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
-		SPHData out_sph_data(i_sph_data);
+		SPHDataComplex out_sph_data(i_sph_data);
 
-		out_sph_data.request_data_spatial();
 		out_sph_data.spat_update_lambda_cogaussian_grid(
-				[](double lambda, double mu, double &o_data)
+				[](double lambda, double mu, std::complex<double> &o_data)
 				{
 					//o_data *= cos(phi);
 					o_data *= mu;
@@ -388,16 +355,24 @@ public:
 		// grad_lat = diff_lat_phi
 		out_sph_data = grad_lat(out_sph_data);
 
-		// undo the sin(theta) which is cos(phi
-		out_sph_data.request_data_spatial();
+		// undo the sin(theta) which is cos(phi)
+#if 0
 		out_sph_data.spat_update_lambda_cogaussian_grid(
-				[](double lambda, double mu, double &o_data)
+				[](double lambda, double mu, std::complex<double> &o_data)
 				{
 					o_data /= mu;
 					//o_data /= cos(phi);
 				}
 			);
-
+#else
+		out_sph_data.spat_update_lambda(
+				[](double lambda, double phi, std::complex<double> &o_data)
+				{
+					//o_data /= mu;
+					o_data /= cos(phi);
+				}
+			);
+#endif
 		return out_sph_data;
 	}
 
@@ -406,13 +381,13 @@ public:
 	/**
 	 * Laplace operator
 	 */
-	SPHData laplace(
-			const SPHData &i_sph_data
+	SPHDataComplex laplace(
+			const SPHDataComplex &i_sph_data
 	)	const
 	{
 		i_sph_data.request_data_spectral();
 
-		SPHData out_sph_data(i_sph_data);
+		SPHDataComplex out_sph_data(i_sph_data);
 
 		out_sph_data.spec_update_lambda(
 				[](int n, int m, std::complex<double> &o_data)
@@ -431,9 +406,9 @@ public:
 	 *
 	 * \eta = grad_lat(V_lon) - grad_lon(V_lat)
 	 */
-	SPHData vort(
-			const SPHData &i_lon,
-			const SPHData &i_lat
+	SPHDataComplex vort(
+			const SPHDataComplex &i_lon,
+			const SPHDataComplex &i_lat
 	)	const
 	{
 		return grad_lon(i_lat) - grad_lat(i_lon);
@@ -447,9 +422,9 @@ public:
 	 *
 	 * \delta = div_lon(i_lon) + div_lan(i_lan)
 	 */
-	SPHData div(
-			const SPHData &i_lon,
-			const SPHData &i_lat
+	SPHDataComplex div(
+			const SPHDataComplex &i_lon,
+			const SPHDataComplex &i_lat
 	)	const
 	{
 		return div_lon(i_lon) + div_lat(i_lat);
