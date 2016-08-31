@@ -143,7 +143,7 @@ int setup(
 
 	if (simVars.spat_res_lon <= 0)
 	{
-		io_sphConfig->setup(
+		io_sphConfig->setupAuto(
 				simVars.spec_res_n, simVars.spec_res_m,		// spectral (lon/lat)
 				&simVars.spat_res_lon, &simVars.spat_res_lat	// spatial (lon/lat)
 		);

@@ -686,6 +686,7 @@ public:
 		}
 	}
 
+
 	void spat_print(int i_precision = 8)	const
 	{
 		request_data_spatial();

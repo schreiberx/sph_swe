@@ -182,7 +182,7 @@ public:
 			int i_row_n,	///< row related to P Legendre mode n
 			int i_row_m,	///< row related to P Fourier mode n
 			int rel_n,		///< Relative Legendre mode n (e.g. -1 or +2)
-			T i_value
+			const T &i_value
 	)
 	{
 		if (i_row_n < i_row_m)

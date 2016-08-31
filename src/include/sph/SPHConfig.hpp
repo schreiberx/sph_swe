@@ -90,6 +90,7 @@ public:
 		lat(nullptr),
 		lat_gaussian(nullptr)
 	{
+		refCounter()++;
 	}
 
 
@@ -160,6 +161,7 @@ private:
 			lat_gaussian[i] = shtns->ct[i];;
 	}
 
+
 public:
 	void setup(
 			int mmax,
@@ -192,15 +194,22 @@ public:
 	}
 
 
+	int& refCounter()
+	{
+		static int ref_counter = 0;
+		return ref_counter;
+	}
+
+
 	/**
 	 * Setup with given modes.
 	 * Spatial resolution will be determined automatically
 	 */
-	void setup(
-			int mmax,
-			int nmax,
-			int *nphi,
-			int *nlat
+	void setupAuto(
+			int i_mmax,
+			int i_nmax,
+			int *o_nphi,
+			int *o_nlat
 	)
 	{
 		shtns_verbose(1);			// displays informations during initialization.
@@ -208,14 +217,14 @@ public:
 
 
 		shtns = shtns_create(
-				nmax,
-				mmax,
+				i_nmax,
+				i_mmax,
 				1,
 				sht_orthonormal
 			);
 
-		*nphi = 0;
-		*nlat = 0;
+		*o_nphi = 0;
+		*o_nlat = 0;
 
 		shtns_set_grid_auto(
 				shtns,
@@ -224,12 +233,30 @@ public:
 				//sht_gauss | SHT_THETA_CONTIGUOUS,	// use gaussian grid
 				0,
 				2,		// use order 2
-				nlat,
-				nphi
+				o_nlat,
+				o_nphi
 			);
 
 		setup_data();
 	}
+
+
+
+	/**
+	 * Setup the SPH Configuration but with twice as much modes
+	 */
+	void setupDouble(
+			SPHConfig *i_sphConfig
+	)
+	{
+		setupAuto(
+				i_sphConfig->spec_n_max*2,
+				i_sphConfig->spec_m_max*2,
+				&spat_num_lon,
+				&spat_num_lat
+		);
+	}
+
 
 
 	void shutdown()
@@ -245,10 +272,21 @@ public:
 
 		fftw_free(lat_gaussian);
 		lat_gaussian = nullptr;
+
+		assert(refCounter() >= 0);
+
+		if (refCounter() == 0)
+		{
+			fftw_cleanup_threads();
+			fftw_cleanup();
+		}
 	}
+
+
 
 	~SPHConfig()
 	{
+		refCounter()--;
 		shutdown();
 	}
 };
