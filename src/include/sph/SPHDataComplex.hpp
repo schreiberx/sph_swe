@@ -323,6 +323,34 @@ public:
 	}
 
 
+	const SPHDataComplex& operator*=(
+			const double i_value
+	)	const
+	{
+		request_data_spectral();
+
+#pragma omp parallel for
+		for (int idx = 0; idx < sphConfig->cplx_spec_num_elems; idx++)
+			data_spec[idx] *= i_value;
+
+		return *this;
+	}
+
+
+	const SPHDataComplex& operator*=(
+			const std::complex<double> &i_value
+	)	const
+	{
+		request_data_spectral();
+
+#pragma omp parallel for
+		for (int idx = 0; idx < sphConfig->cplx_spec_num_elems; idx++)
+			data_spec[idx] *= i_value;
+
+		return *this;
+	}
+
+
 	SPHDataComplex operator/(
 			double i_value
 	)	const

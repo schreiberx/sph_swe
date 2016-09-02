@@ -87,6 +87,22 @@ int setup(
 			{
 				simVars.timecontrol.current_timestep_size = atof(&(i_argv[i][1]));
 			}
+			else if (i_argv[i][0] == 'E')
+			{
+				simVars.timecontrol.max_simulation_time = atof(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'V')
+			{
+				simVars.viscosity2 = atof(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'O')
+			{
+				simVars.output_dt = atof(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'W')
+			{
+				simVars.rexi_M = atoi(&(i_argv[i][1]));
+			}
 		}
 	}
 	else

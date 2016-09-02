@@ -36,9 +36,6 @@ public:
 	SPHData prog_v;
 	SPHData fdata;
 
-	// output data every 0.01 simulation seconds
-	double output_dt = 0.2;
-	double next_output_dt = 0;
 
 	int benchmark_id = 1;
 
@@ -69,28 +66,28 @@ public:
 	{
 		char buffer[1024];
 
-		sprintf(buffer, "prog_h_t%010.4f.csv", simVars.timecontrol.current_simulation_time/(60*60));
+		sprintf(buffer, "prog_h_t%020.8f.csv", simVars.timecontrol.current_simulation_time/(60*60));
 		if (benchmark_id == 1)
 			prog_h.spat_write_file_lon_pi_shifted(buffer);
 		else
 			prog_h.spat_write_file(buffer);
-		std::cout << buffer << std::endl;
+		std::cout << buffer << " (min: " << prog_h.spat_reduce_min() << ", max: " << prog_h.spat_reduce_max() << ")" << std::endl;
 
-		sprintf(buffer, "prog_u_t%010.4f.csv", simVars.timecontrol.current_simulation_time/(60*60));
+		sprintf(buffer, "prog_u_t%020.8f.csv", simVars.timecontrol.current_simulation_time/(60*60));
 		if (benchmark_id == 1)
 			prog_u.spat_write_file_lon_pi_shifted(buffer);
 		else
-			prog_h.spat_write_file(buffer);
+			prog_u.spat_write_file(buffer);
 		std::cout << buffer << std::endl;
 
-		sprintf(buffer, "prog_v_t%010.4f.csv", simVars.timecontrol.current_simulation_time/(60*60));
+		sprintf(buffer, "prog_v_t%020.8f.csv", simVars.timecontrol.current_simulation_time/(60*60));
 		if (benchmark_id == 1)
 			prog_v.spat_write_file_lon_pi_shifted(buffer);
 		else
-			prog_h.spat_write_file(buffer);
+			prog_v.spat_write_file(buffer);
 		std::cout << buffer << std::endl;
 
-		sprintf(buffer, "prog_eta_t%010.4f.csv", simVars.timecontrol.current_simulation_time/(60*60));
+		sprintf(buffer, "prog_eta_t%020.8f.csv", simVars.timecontrol.current_simulation_time/(60*60));
 		SPHData vort = op.vort(prog_u, prog_v)/simVars.earth_radius;
 		if (benchmark_id == 1)
 			vort.spat_write_file_lon_pi_shifted(buffer, "vorticity, lon pi shifted");
@@ -111,6 +108,7 @@ public:
 #else
 		double center_lon = 0;//M_PI;
 		double center_lat = M_PI/3;
+		//double center_lat = 0;
 #endif
 
 
@@ -147,18 +145,20 @@ public:
 
 	void run()
 	{
-
 		// one month runtime
-		simVars.timecontrol.max_simulation_time = 31*60*60*24;
+		if (simVars.timecontrol.max_simulation_time == -1)
+		{
+			simVars.timecontrol.max_simulation_time = 31*60*60*24;
 
-		// 144 h
-		//simVars.timecontrol.max_simulation_time = 144*60*60;
+			// 144 h
+			//simVars.timecontrol.max_simulation_time = 144*60*60;
 
-		// 200 h
-		simVars.timecontrol.max_simulation_time = 200*60*60;
-//		simVars.timecontrol.max_simulation_time = 1;
+			// 200 h
+			simVars.timecontrol.max_simulation_time = 200*60*60;
+	//		simVars.timecontrol.max_simulation_time = 1;
+		}
 
-		next_output_dt = 0;
+		simVars.next_output_dt = 0;
 
 		if (simVars.timestepping_method == 0)
 		{
@@ -175,9 +175,9 @@ public:
 			}
 			//simVars.timecontrol.current_timestep_size = 30;
 
-			output_dt = 60*30;	// output every 1/2 hour
+			simVars.output_dt = 60*30;	// output every 1/2 hour
 		}
-		else if (simVars.timestepping_method == 1)
+		else if (simVars.timestepping_method == 1 || simVars.timestepping_method == 2)
 		{
 			// REXI
 			if (simVars.timecontrol.current_timestep_size <= 0)
@@ -187,8 +187,29 @@ public:
 				exit(1);
 			}
 
+			//simVars.h0 = 1;
 			benchmark_id = 0;
-			output_dt = 0;
+
+			simVars.use_nonlinear_equations = 0;
+		}
+		else if (simVars.timestepping_method == 3 || simVars.timestepping_method == 4)
+		{
+			// REXI
+			if (simVars.timecontrol.current_timestep_size <= 0)
+			{
+				std::cout << "Timestep size not positive" << std::endl;
+				assert(false);
+				exit(1);
+			}
+
+			simVars.h0 = 1;
+			simVars.gravitation = 1;
+			simVars.earth_radius = 1;
+			simVars.coriolis_omega = 1;
+
+			benchmark_id = 0;
+
+			simVars.use_nonlinear_equations = 0;
 		}
 
 		std::cout << "Using time step size dt = " << simVars.timecontrol.current_timestep_size << std::endl;
@@ -200,6 +221,9 @@ public:
 		std::cout << " + viscosity D2: " << simVars.viscosity2 << std::endl;
 		std::cout << " + use_nonlinear: " << simVars.use_nonlinear_equations << std::endl;
 		std::cout << " + timestepping method: " << simVars.timestepping_method << std::endl;
+		std::cout << " + timestep size: " << simVars.timecontrol.current_timestep_size << std::endl;
+		std::cout << " + rexi M: " << simVars.rexi_M << std::endl;
+
 		std::cout << std::endl;
 
 		fdata.spat_update_lambda_gaussian_grid(
@@ -224,18 +248,18 @@ public:
 		}
 
 
-		if (simVars.timestepping_method == 0)
+		if (simVars.timestepping_method == 0 || simVars.timestepping_method == 2 || simVars.timestepping_method == 4)
 		{
 			simVars.timecontrol.current_simulation_time = 0;
 			while (simVars.timecontrol.current_simulation_time < simVars.timecontrol.max_simulation_time)
 			{
-				if (simVars.timecontrol.current_simulation_time >= next_output_dt)
+				if (simVars.timecontrol.current_simulation_time >= simVars.next_output_dt)
 				{
 					write_output();
 
-					next_output_dt += output_dt;
-					if (next_output_dt < simVars.timecontrol.current_simulation_time)
-						next_output_dt = simVars.timecontrol.current_simulation_time;
+					simVars.next_output_dt += simVars.output_dt;
+					if (simVars.next_output_dt < simVars.timecontrol.current_simulation_time)
+						simVars.next_output_dt = simVars.timecontrol.current_simulation_time;
 				}
 
 				double o_dt;
@@ -264,12 +288,12 @@ public:
 			write_output();
 			std::cout << std::endl;
 		}
-		else
+		else if (simVars.timestepping_method == 1 || simVars.timestepping_method == 3)
 		{
 			SPHSolver<double> sphSolver;
 			sphSolver.setup(sphConfig, 4);
 
-			rexi.setup(0.2, 128);
+			rexi.setup(0.2, simVars.rexi_M);
 
 			SPHData tmp_prog_phi(sphConfig);
 			SPHData tmp_prog_u(sphConfig);
@@ -282,22 +306,38 @@ public:
 			simVars.timecontrol.current_simulation_time = 0;
 			while (simVars.timecontrol.current_simulation_time < simVars.timecontrol.max_simulation_time)
 			{
-				if (simVars.timecontrol.current_simulation_time >= next_output_dt)
+				if (simVars.timecontrol.current_simulation_time >= simVars.next_output_dt)
 				{
 					write_output();
 
-					next_output_dt += output_dt;
-					if (next_output_dt < simVars.timecontrol.current_simulation_time)
-						next_output_dt = simVars.timecontrol.current_simulation_time;
+					simVars.next_output_dt += simVars.output_dt;
+					if (simVars.next_output_dt < simVars.timecontrol.current_simulation_time)
+						simVars.next_output_dt = simVars.timecontrol.current_simulation_time;
 				}
 
 
 				{
+					// convert to geopotential
 					SPHData prog_phi = prog_h*simVars.gravitation;
 
 					accum_prog_phi.spat_set_zero();
 					accum_prog_u.spat_set_zero();
 					accum_prog_v.spat_set_zero();
+
+#if 0
+					double avg_geopo = simVars.h0*simVars.gravitation;
+					double sqrt_avg_geopo = std::sqrt(avg_geopo);
+
+					double inv_sqrt_avg_geopo = 1.0/sqrt_avg_geopo;
+					double inv_avg_geopo = 1.0/sqrt_avg_geopo;
+
+					/*
+					 * NON-dimensionalize
+					 */
+					prog_phi *= inv_avg_geopo;
+					prog_u *= inv_sqrt_avg_geopo;
+					prog_v *= inv_sqrt_avg_geopo;
+#endif
 
 					for (int i = 0; i < rexi.alpha.size(); i++)
 					{
@@ -310,9 +350,12 @@ public:
 								alpha,
 								beta,
 								simVars.earth_radius,
-								simVars.coriolis_omega,
-								simVars.timecontrol.current_timestep_size
+								simVars.coriolis_omega, //*inv_sqrt_avg_geopo,
+								simVars.h0*simVars.gravitation,
+								simVars.timecontrol.current_timestep_size, //*sqrt_avg_geopo
+								false
 						);
+
 
 						rexiSPH.solve(
 								prog_phi, prog_u, prog_v,
@@ -324,6 +367,12 @@ public:
 						accum_prog_u += tmp_prog_u;
 						accum_prog_v += tmp_prog_v;
 					}
+
+#if 0
+					accum_prog_phi *= inv_avg_geopo;
+					accum_prog_u *= inv_sqrt_avg_geopo;
+					accum_prog_v *= inv_sqrt_avg_geopo;
+#endif
 
 					prog_h = accum_prog_phi*(1.0/simVars.gravitation);
 					prog_u = accum_prog_u;
@@ -342,6 +391,13 @@ public:
 
 				simVars.timecontrol.current_simulation_time += simVars.timecontrol.current_timestep_size;
 			}
+			write_output();
+			std::cout << std::endl;
+		}
+		else
+		{
+			std::cerr << "Unsupported time stepping!" << std::endl;
+			exit(1);
 		}
 	}
 
@@ -357,7 +413,7 @@ public:
 			SPHData &o_u_t,	///< time updates
 			SPHData &o_v_t,	///< time updates
 
-			double &o_dt,			///< time step restriction
+			double &o_dt,				///< time step restriction
 			double i_fixed_dt = 0,		///< if this value is not equal to 0, use this time step size instead of computing one
 			double i_simulation_timestamp = -1
 	)
@@ -368,6 +424,7 @@ public:
 		{
 			// linear equations
 			o_h_t = -(op.div_lon(i_u)+op.div_lat(i_v))*(simVars.h0/simVars.earth_radius);
+
 			o_u_t = -op.grad_lon(i_h)*(simVars.gravitation/simVars.earth_radius);
 			o_v_t = -op.grad_lat(i_h)*(simVars.gravitation/simVars.earth_radius);
 

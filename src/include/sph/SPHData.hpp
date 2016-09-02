@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cassert>
+#include <limits>
 
 #include <sweet/MemBlockAlloc.hpp>
 #include "SPHConfig.hpp"
@@ -254,6 +255,39 @@ public:
 		out_sph_data.data_spat_valid = false;
 
 		return out_sph_data;
+	}
+
+
+
+
+	const SPHData& operator*=(
+			const double i_value
+	)	const
+	{
+		request_data_spectral();
+
+#pragma omp parallel for
+		for (int idx = 0; idx < sphConfig->spec_num_elems; idx++)
+			data_spec[idx] *= i_value;
+
+		return *this;
+	}
+
+
+
+
+
+	const SPHData& operator*=(
+			const std::complex<double> &i_value
+	)	const
+	{
+		request_data_spectral();
+
+#pragma omp parallel for
+		for (int idx = 0; idx < sphConfig->spec_num_elems; idx++)
+			data_spec[idx] *= i_value;
+
+		return *this;
 	}
 
 
@@ -606,9 +640,9 @@ public:
 
 
 	/**
-	 * Return the maximum error norm
+	 * Return the maximum absolute value
 	 */
-	double spat_reduce_error_max()
+	double spat_reduce_abs_max()
 	{
 		request_data_spatial();
 
@@ -620,6 +654,40 @@ public:
 						error,
 						std::abs(data_spat[j])
 						);
+		}
+		return error;
+	}
+
+
+	/**
+	 * Return the maximum value
+	 */
+	double spat_reduce_min()
+	{
+		request_data_spatial();
+
+		double error = std::numeric_limits<double>::infinity();
+
+		for (int j = 0; j < sphConfig->spat_num_elems; j++)
+		{
+			error = std::min(error, data_spat[j]);
+		}
+		return error;
+	}
+
+
+	/**
+	 * Return the minimum value
+	 */
+	double spat_reduce_max()
+	{
+		request_data_spatial();
+
+		double error = -std::numeric_limits<double>::infinity();
+
+		for (int j = 0; j < sphConfig->spat_num_elems; j++)
+		{
+			error = std::max(error, data_spat[j]);
 		}
 		return error;
 	}

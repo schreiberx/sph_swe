@@ -28,6 +28,12 @@ struct SimVars
 	double viscosity2 = 1e5;
 //	double viscosity2 = 1e2;
 
+	// output data every 0.01 simulation seconds
+	double output_dt = 0.2;
+	double next_output_dt = 0;
+
+	int rexi_M = 128;
+
 	int timestepping_method = 0;
 
 	bool use_nonlinear_equations = true;
