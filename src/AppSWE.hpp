@@ -147,19 +147,6 @@ public:
 
 	void run()
 	{
-		// time step size
-		if (sphConfig->spat_num_lat < 256)
-		{
-//			simVars.viscosity2 = 1e5;
-			simVars.timecontrol.current_timestep_size = 0.002*simVars.earth_radius/(double)sphConfig->spat_num_lat;
-		}
-		else
-		{
-
-//			simVars.viscosity2 = 1e5;
-			simVars.timecontrol.current_timestep_size = 0.001*simVars.earth_radius/(double)sphConfig->spat_num_lat;
-		}
-		//simVars.timecontrol.current_timestep_size = 30;
 
 		// one month runtime
 		simVars.timecontrol.max_simulation_time = 31*60*60*24;
@@ -171,10 +158,38 @@ public:
 		simVars.timecontrol.max_simulation_time = 200*60*60;
 //		simVars.timecontrol.max_simulation_time = 1;
 
-		output_dt = 60*30;	// output every 1/2 hour
-//		output_dt = 0;
-
 		next_output_dt = 0;
+
+		if (simVars.timestepping_method == 0)
+		{
+			// time step size
+			if (sphConfig->spat_num_lat < 256)
+			{
+	//			simVars.viscosity2 = 1e5;
+				simVars.timecontrol.current_timestep_size = 0.002*simVars.earth_radius/(double)sphConfig->spat_num_lat;
+			}
+			else
+			{
+	//			simVars.viscosity2 = 1e5;
+				simVars.timecontrol.current_timestep_size = 0.001*simVars.earth_radius/(double)sphConfig->spat_num_lat;
+			}
+			//simVars.timecontrol.current_timestep_size = 30;
+
+			output_dt = 60*30;	// output every 1/2 hour
+		}
+		else if (simVars.timestepping_method == 1)
+		{
+			// REXI
+			if (simVars.timecontrol.current_timestep_size <= 0)
+			{
+				std::cout << "Timestep size not positive" << std::endl;
+				assert(false);
+				exit(1);
+			}
+
+			benchmark_id = 0;
+			output_dt = 0;
+		}
 
 		std::cout << "Using time step size dt = " << simVars.timecontrol.current_timestep_size << std::endl;
 		std::cout << "Running simulation until t_end = " << simVars.timecontrol.max_simulation_time << std::endl;
@@ -254,49 +269,78 @@ public:
 			SPHSolver<double> sphSolver;
 			sphSolver.setup(sphConfig, 4);
 
-			rexi.setup(0.2, 256);
+			rexi.setup(0.2, 128);
 
-			// convert to geopotential
-			const SPHData phi0 = prog_h*simVars.gravitation;
-			const SPHData &u0 = prog_u;
-			const SPHData &v0 = prog_v;
+			SPHData tmp_prog_phi(sphConfig);
+			SPHData tmp_prog_u(sphConfig);
+			SPHData tmp_prog_v(sphConfig);
 
-			SPHData phi1(phi0.sphConfig);
-			SPHData u1(u0.sphConfig);
-			SPHData v1(v0.sphConfig);
+			SPHData accum_prog_phi(sphConfig);
+			SPHData accum_prog_u(sphConfig);
+			SPHData accum_prog_v(sphConfig);
 
-			phi1.spec_set_zero();
-			u1.spec_set_zero();
-			v1.spec_set_zero();
-
-			SPHData tmp_phi1(phi0.sphConfig);
-			SPHData tmp_u1(u0.sphConfig);
-			SPHData tmp_v1(v0.sphConfig);
-
-			SWERexiSPH rexiSPH;
-			for (int i = 0; i < rexi.alpha.size(); i++)
+			simVars.timecontrol.current_simulation_time = 0;
+			while (simVars.timecontrol.current_simulation_time < simVars.timecontrol.max_simulation_time)
 			{
-				std::complex<double> alpha = rexi.alpha[i];
-				std::complex<double> beta = rexi.beta_re[i];
+				if (simVars.timecontrol.current_simulation_time >= next_output_dt)
+				{
+					write_output();
 
-				rexiSPH.setup(
-						phi0.sphConfig,
-						alpha,
-						beta,
-						simVars.earth_radius,
-						simVars.coriolis_omega
-				);
+					next_output_dt += output_dt;
+					if (next_output_dt < simVars.timecontrol.current_simulation_time)
+						next_output_dt = simVars.timecontrol.current_simulation_time;
+				}
 
-				rexiSPH.solve(
-						phi0, u0, v0,
-						tmp_phi1, tmp_u1, tmp_v1,
-						opComplex,
-						simVars.timecontrol.current_timestep_size
-					);
 
-				phi1 += tmp_phi1;
-				u1 += tmp_u1;
-				v1 += tmp_v1;
+				{
+					SPHData prog_phi = prog_h*simVars.gravitation;
+
+					accum_prog_phi.spat_set_zero();
+					accum_prog_u.spat_set_zero();
+					accum_prog_v.spat_set_zero();
+
+					for (int i = 0; i < rexi.alpha.size(); i++)
+					{
+						std::complex<double> alpha = rexi.alpha[i];
+						std::complex<double> beta = rexi.beta_re[i];
+
+						SWERexiSPH rexiSPH;
+						rexiSPH.setup(
+								sphConfig,
+								alpha,
+								beta,
+								simVars.earth_radius,
+								simVars.coriolis_omega,
+								simVars.timecontrol.current_timestep_size
+						);
+
+						rexiSPH.solve(
+								prog_phi, prog_u, prog_v,
+								tmp_prog_phi, tmp_prog_u, tmp_prog_v,
+								opComplex
+							);
+
+						accum_prog_phi += tmp_prog_phi;
+						accum_prog_u += tmp_prog_u;
+						accum_prog_v += tmp_prog_v;
+					}
+
+					prog_h = accum_prog_phi*(1.0/simVars.gravitation);
+					prog_u = accum_prog_u;
+					prog_v = accum_prog_v;
+				}
+
+
+				std::cout << "." << std::flush;
+
+				if (prog_h.isAnyNaNorInf())
+				{
+					std::cerr << "Instability detected (NaN value in H)" << std::endl;
+					assert(false);
+					exit(1);
+				}
+
+				simVars.timecontrol.current_simulation_time += simVars.timecontrol.current_timestep_size;
 			}
 		}
 	}

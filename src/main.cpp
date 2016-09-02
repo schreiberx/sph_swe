@@ -83,6 +83,10 @@ int setup(
 			{
 				simVars.timestepping_method = atoi(&(i_argv[i][1]));
 			}
+			else if (i_argv[i][0] == 'R')
+			{
+				simVars.timecontrol.current_timestep_size = atof(&(i_argv[i][1]));
+			}
 		}
 	}
 	else
