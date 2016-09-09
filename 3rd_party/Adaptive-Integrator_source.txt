@@ -1,1 +1,0 @@
-https://github.com/nblinov/Adaptive-Integrator/blob/master/AdaptiveIntegrator.hpp

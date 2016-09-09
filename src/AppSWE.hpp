@@ -8,7 +8,6 @@
 #ifndef SRC_TESTSWE_HPP_
 #define SRC_TESTSWE_HPP_
 
-#include "../../3rd_party/Adaptive-Integrator/AdaptiveIntegrator.hpp"
 #include <benchmarks/BenchmarkGalewsky.hpp>
 #include <sweet/TimesteppingRK.hpp>
 #include <rexi/REXI.hpp>
@@ -212,6 +211,8 @@ public:
 			simVars.use_nonlinear_equations = 0;
 		}
 
+		bool with_coriolis = false;
+
 		std::cout << "Using time step size dt = " << simVars.timecontrol.current_timestep_size << std::endl;
 		std::cout << "Running simulation until t_end = " << simVars.timecontrol.max_simulation_time << std::endl;
 		std::cout << "Parameters:" << std::endl;
@@ -223,6 +224,7 @@ public:
 		std::cout << " + timestepping method: " << simVars.timestepping_method << std::endl;
 		std::cout << " + timestep size: " << simVars.timecontrol.current_timestep_size << std::endl;
 		std::cout << " + rexi M: " << simVars.rexi_M << std::endl;
+		std::cout << " + Coriolis: " << with_coriolis << std::endl;
 
 		std::cout << std::endl;
 
@@ -353,7 +355,7 @@ public:
 								simVars.coriolis_omega, //*inv_sqrt_avg_geopo,
 								simVars.h0*simVars.gravitation,
 								simVars.timecontrol.current_timestep_size, //*sqrt_avg_geopo
-								false
+								with_coriolis
 						);
 
 
