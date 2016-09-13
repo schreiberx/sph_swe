@@ -35,3 +35,4 @@ clean:
 	rm -f build/main.o
 	rm -f build/sh_example
 	rm -f O_*
+	rm -f prog_*
