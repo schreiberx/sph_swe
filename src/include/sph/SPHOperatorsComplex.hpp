@@ -387,16 +387,16 @@ public:
 	{
 		i_sph_data.request_data_spectral();
 
-		SPHDataComplex out_sph_data(i_sph_data);
+		SPHDataComplex out(i_sph_data);
 
-		out_sph_data.spec_update_lambda(
+		out.spec_update_lambda(
 				[](int n, int m, std::complex<double> &o_data)
 				{
 					o_data *= -(double)n*((double)n+1.0);
 				}
 			);
 
-		return out_sph_data;
+		return out;
 	}
 
 

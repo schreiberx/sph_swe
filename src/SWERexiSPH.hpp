@@ -77,7 +77,7 @@ public:
 		timestep_size = i_timestep_size;
 
 		alpha = i_alpha/timestep_size;
-		beta = i_beta/timestep_size;
+		beta = i_beta;///timestep_size;
 
 		r = i_radius;
 		ir = 1.0/r;
@@ -142,6 +142,9 @@ public:
 		SPHDataComplex u0(i_u0);
 		SPHDataComplex v0(i_v0);
 
+		phi0 *= (1.0/timestep_size);
+		u0 *= (1.0/timestep_size);
+		v0 *= (1.0/timestep_size);
 
 		SPHDataComplex div0(ir*op.div(u0, v0));
 		SPHDataComplex eta0(ir*op.vort(u0, v0));
@@ -152,7 +155,6 @@ public:
 
 		if (include_coriolis_effect)
 		{
-
 			SPHDataComplex Fck = two_omega*ir*op.grad_lon(mu)*(-(alpha*alpha*u0 - two_omega*two_omega*op.mu2(u0)) + 2.0*alpha*two_omega*op.mu(v0));
 			SPHDataComplex foo = div0 - two_omega*(1.0/alpha)*op.mu(eta0) + alpha*i_phi0 + two_omega*two_omega*(1.0/alpha)*op.mu2(i_phi0);
 			SPHDataComplex rhs = alpha*alpha*foo + two_omega*two_omega*op.mu2(foo) + (1.0/alpha)*Fck;
@@ -170,21 +172,32 @@ public:
 		}
 		else
 		{
-			SPHDataComplex foo = div0 + alpha*i_phi0;
-			SPHDataComplex rhs = alpha*alpha*foo;
+#if 0
+
+			SPHDataComplex foo = avg_geopotential*div0 + alpha*i_phi0;
+			SPHDataComplex rhs = (alpha*alpha)*foo;
 
 			phi = sphSolverPhi.solve(rhs);
 
-			SPHDataComplex a = u0 + ir*op.grad_lon(phi);
-			SPHDataComplex b = v0 + ir*op.grad_lat(phi);
 
-			SPHDataComplex rhsa = alpha*a;
-			SPHDataComplex rhsb = alpha*b;
+			SPHDataComplex rhsa = alpha*(u0 + ir*op.grad_lon(phi));
+			SPHDataComplex rhsb = alpha*(v0 + ir*op.grad_lat(phi));
 
+			// sphSolverVel.solver_component_rexi_z1(	alpha*alpha, r);
 			u = sphSolverVel.solve(rhsa);
 			v = sphSolverVel.solve(rhsb);
-		}
 
+#else
+
+			SPHDataComplex rhs = avg_geopotential*div0 + alpha*i_phi0;
+			phi = rhs.spec_solve_helmholtz(alpha*alpha, -avg_geopotential, r);
+
+			// same solver, but without solving inverse problem
+			u = (1.0/alpha) * (u0 + ir*op.grad_lon(phi));
+			v = (1.0/alpha) * (v0 + ir*op.grad_lat(phi));
+
+#endif
+		}
 
 		phi *= beta;
 		u *= beta;

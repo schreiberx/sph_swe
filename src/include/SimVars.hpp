@@ -33,6 +33,13 @@ struct SimVars
 	double next_output_dt = 0;
 
 	int rexi_M = 128;
+	/*
+	 * (phi, u, v) = (geopotential, velocity u, velocity v)
+	 *
+	 * 0: (phi, u, v)
+	 * 1: (phi, U, V) with U=cos(phi)u and V=cos(phi)v
+	 */
+	int swe_variant = 0;
 
 	int timestepping_method = 0;
 

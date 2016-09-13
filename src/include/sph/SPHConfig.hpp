@@ -77,6 +77,12 @@ public:
 public:
 	double *lat_gaussian;
 
+	/**
+	 * Array with mu = sin(phi) values
+	 */
+public:
+	double *lat_cogaussian;
+
 public:
 	SPHConfig()	:
 		shtns(nullptr),
@@ -90,7 +96,8 @@ public:
 		cplx_spec_num_elems(-1),
 
 		lat(nullptr),
-		lat_gaussian(nullptr)
+		lat_gaussian(nullptr),
+		lat_cogaussian(nullptr)
 	{
 		refCounter()++;
 	}
@@ -305,7 +312,11 @@ private:
 
 		lat_gaussian = (double*)fftw_malloc(sizeof(double)*shtns->nlat);
 		for (int i = 0; i < shtns->nlat; i++)
-			lat_gaussian[i] = shtns->ct[i];;
+			lat_gaussian[i] = shtns->ct[i];		/// sin(phi) (SHTNS stores cos(phi))
+
+		lat_cogaussian = (double*)fftw_malloc(sizeof(double)*shtns->nlat);
+		for (int i = 0; i < shtns->nlat; i++)
+			lat_cogaussian[i] = shtns->st[i];	/// cos(phi) (SHTNS stores sin(phi))
 	}
 
 
@@ -419,6 +430,9 @@ public:
 
 		fftw_free(lat_gaussian);
 		lat_gaussian = nullptr;
+
+		fftw_free(lat_cogaussian);
+		lat_cogaussian = nullptr;
 
 		assert(refCounter() >= 0);
 

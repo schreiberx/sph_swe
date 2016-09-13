@@ -36,7 +36,7 @@ public:
 	SPHData fdata;
 
 
-	int benchmark_id = 1;
+	int benchmark_id = 2;
 
 	BenchmarkGalewsky benchmarkGalewsky;
 
@@ -97,7 +97,7 @@ public:
 
 
 
-	void setup_initial_conditions_gaussian()
+	void setup_initial_conditions_gaussian(double i_center_lat = M_PI/3)
 	{
 		double exp_fac = 10.0;
 
@@ -107,7 +107,7 @@ public:
 #else
 		double center_lon = 0;//M_PI;
 		double center_lat = M_PI/3;
-		//double center_lat = 0;
+		center_lat = i_center_lat;
 #endif
 
 
@@ -191,7 +191,7 @@ public:
 
 			simVars.use_nonlinear_equations = 0;
 		}
-		else if (simVars.timestepping_method == 3 || simVars.timestepping_method == 4)
+		else if (simVars.timestepping_method == 3 || simVars.timestepping_method == 4 || simVars.timestepping_method == 5 || simVars.timestepping_method == 6)
 		{
 			// REXI
 			if (simVars.timecontrol.current_timestep_size <= 0)
@@ -204,9 +204,11 @@ public:
 			simVars.h0 = 1;
 			simVars.gravitation = 1;
 			simVars.earth_radius = 1;
-			simVars.coriolis_omega = 1;
 
-			benchmark_id = 0;
+			if (simVars.timestepping_method == 5 || simVars.timestepping_method == 6)
+				benchmark_id = 2;
+			else
+				benchmark_id = 0;
 
 			simVars.use_nonlinear_equations = 0;
 		}
@@ -218,6 +220,7 @@ public:
 		std::cout << "Parameters:" << std::endl;
 		std::cout << " + gravity: " << simVars.gravitation << std::endl;
 		std::cout << " + earth_radius: " << simVars.earth_radius << std::endl;
+		std::cout << " + average height: " << simVars.h0 << std::endl;
 		std::cout << " + coriolis_omega: " << simVars.coriolis_omega << std::endl;
 		std::cout << " + viscosity D2: " << simVars.viscosity2 << std::endl;
 		std::cout << " + use_nonlinear: " << simVars.use_nonlinear_equations << std::endl;
@@ -248,9 +251,24 @@ public:
 			benchmarkGalewsky.setup_initial_u(prog_u);
 			benchmarkGalewsky.setup_initial_v(prog_v);
 		}
+		else if (benchmark_id == 2)
+		{
+			setup_initial_conditions_gaussian(0);
+#if 0
+//			prog_h.spat_set_value(simVars.h0);
+			prog_v.spat_set_zero();
+			prog_u.spat_update_lambda_cogaussian_grid(
+					[](double lon, double comu, double &io_data)
+					{
+						io_data = 1*comu;
+					}
+				);
+			//prog_u.spat_set_zero();
+#endif
+		}
 
 
-		if (simVars.timestepping_method == 0 || simVars.timestepping_method == 2 || simVars.timestepping_method == 4)
+		if (simVars.timestepping_method == 0 || simVars.timestepping_method == 2 || simVars.timestepping_method == 4 || simVars.timestepping_method == 6)
 		{
 			simVars.timecontrol.current_simulation_time = 0;
 			while (simVars.timecontrol.current_simulation_time < simVars.timecontrol.max_simulation_time)
@@ -290,7 +308,7 @@ public:
 			write_output();
 			std::cout << std::endl;
 		}
-		else if (simVars.timestepping_method == 1 || simVars.timestepping_method == 3)
+		else if (simVars.timestepping_method == 1 || simVars.timestepping_method == 3 || simVars.timestepping_method == 5)
 		{
 			SPHSolver<double> sphSolver;
 			sphSolver.setup(sphConfig, 4);
@@ -326,25 +344,10 @@ public:
 					accum_prog_u.spat_set_zero();
 					accum_prog_v.spat_set_zero();
 
-#if 0
-					double avg_geopo = simVars.h0*simVars.gravitation;
-					double sqrt_avg_geopo = std::sqrt(avg_geopo);
-
-					double inv_sqrt_avg_geopo = 1.0/sqrt_avg_geopo;
-					double inv_avg_geopo = 1.0/sqrt_avg_geopo;
-
-					/*
-					 * NON-dimensionalize
-					 */
-					prog_phi *= inv_avg_geopo;
-					prog_u *= inv_sqrt_avg_geopo;
-					prog_v *= inv_sqrt_avg_geopo;
-#endif
-
 					for (int i = 0; i < rexi.alpha.size(); i++)
 					{
-						std::complex<double> alpha = rexi.alpha[i];
-						std::complex<double> beta = rexi.beta_re[i];
+						std::complex<double> &alpha = rexi.alpha[i];
+						std::complex<double> &beta = rexi.beta_re[i];
 
 						SWERexiSPH rexiSPH;
 						rexiSPH.setup(
@@ -358,7 +361,6 @@ public:
 								with_coriolis
 						);
 
-
 						rexiSPH.solve(
 								prog_phi, prog_u, prog_v,
 								tmp_prog_phi, tmp_prog_u, tmp_prog_v,
@@ -369,12 +371,6 @@ public:
 						accum_prog_u += tmp_prog_u;
 						accum_prog_v += tmp_prog_v;
 					}
-
-#if 0
-					accum_prog_phi *= inv_avg_geopo;
-					accum_prog_u *= inv_sqrt_avg_geopo;
-					accum_prog_v *= inv_sqrt_avg_geopo;
-#endif
 
 					prog_h = accum_prog_phi*(1.0/simVars.gravitation);
 					prog_u = accum_prog_u;
@@ -424,16 +420,35 @@ public:
 
 		if (!simVars.use_nonlinear_equations)
 		{
-			// linear equations
-			o_h_t = -(op.div_lon(i_u)+op.div_lat(i_v))*(simVars.h0/simVars.earth_radius);
 
-			o_u_t = -op.grad_lon(i_h)*(simVars.gravitation/simVars.earth_radius);
-			o_v_t = -op.grad_lat(i_h)*(simVars.gravitation/simVars.earth_radius);
-
-			if (simVars.coriolis_omega != 0)
+			if (simVars.swe_variant == 0)
 			{
-				o_u_t += f(i_v);
-				o_v_t -= f(i_u);
+				// linear equations
+				o_h_t = -(op.div_lon(i_u)+op.div_lat(i_v))*(simVars.h0/simVars.earth_radius);
+
+				o_u_t = -op.grad_lon(i_h)*(simVars.gravitation/simVars.earth_radius);
+				o_v_t = -op.grad_lat(i_h)*(simVars.gravitation/simVars.earth_radius);
+
+				if (simVars.coriolis_omega != 0)
+				{
+					o_u_t += f(i_v);
+					o_v_t -= f(i_u);
+				}
+			}
+			else
+			{
+				// use Robert functions for velocity
+				// linear equations
+				o_h_t = -(op.robert_div_lon(i_u)+op.robert_div_lat(i_v))*(simVars.h0/simVars.earth_radius);
+
+				o_u_t = -op.robert_grad_lon(i_h)*(simVars.gravitation/simVars.earth_radius);
+				o_v_t = -op.robert_grad_lat(i_h)*(simVars.gravitation/simVars.earth_radius);
+
+				if (simVars.coriolis_omega != 0)
+				{
+					o_u_t += f(i_v);
+					o_v_t -= f(i_u);
+				}
 			}
 		}
 		else

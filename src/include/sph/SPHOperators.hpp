@@ -141,15 +141,108 @@ public:
 	}
 
 
-#if 0
-	static double fac_double(double v)
+
+	/**
+	 * Divergence Operator along longitude for robert function formlation
+	 *
+	 * This computes
+	 * 	1/cos^2(phi)  d/dlambda U
+	 */
+	SPHData robert_div_lon(
+			const SPHData &i_sph_data
+	)	const
 	{
-		double retval = 1;
-	    for (double i = 1; i <= v; ++i)
-	    	retval *= i;
-	    return retval;
+		SPHData out = diff_lon(i_sph_data);
+
+		out.spat_update_lambda_cosphi_grid(
+				[](double lambda, double cos_phi, double &o_data)
+				{
+					o_data /= cos_phi*cos_phi;
+				}
+			);
+
+		return out;
 	}
-#endif
+
+
+
+	/**
+	 * Compute divergence along latitude for robert function formulation
+	 *
+	 * This computes
+	 * 		d/dmu V
+	 */
+	SPHData robert_div_lat(
+			const SPHData &i_sph_data
+	)	const
+	{
+		/*
+		 * Compute
+		 *   cos^2(phi) * d/d mu  f(lambda,mu)
+		 */
+		SPHData out = spec_cosphi_squared_diff_lat_mu(i_sph_data);
+
+		out.spat_update_lambda_cosphi_grid(
+				[](double lambda, double cos_phi, double &o_data)
+				{
+					o_data /= cos_phi*cos_phi;
+				}
+			);
+
+		return out;
+	}
+
+
+
+	/**
+	 * Compute gradient component along longitude (lambda) for Robert function formulation
+	 *
+	 * This computes
+	 * 		d/dlambda Phi
+	 * with Phi the geopotential
+	 */
+	SPHData robert_grad_lon(
+			const SPHData &i_sph_data
+	)	const
+	{
+		return diff_lon(i_sph_data);
+	}
+
+
+	/**
+	 * Compute gradient component along latitude for Robert function formulation
+	 *
+	 * This computes
+	 * 		cos^2(phi) * d/dmu Phi
+	 *
+	 * with Phi the geopotential
+	 */
+	SPHData robert_grad_lat(
+			const SPHData &i_sph_data
+	)	const
+	{
+		return spec_cosphi_squared_diff_lat_mu(i_sph_data);
+	}
+
+
+
+	inline
+	SPHData spec_one_minus_sinphi_squared_diff_lat_mu(
+			const SPHData &i_sph_data
+	)	const
+	{
+		return spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+	}
+
+
+
+	inline
+	SPHData spec_cosphi_squared_diff_lat_mu(
+			const SPHData &i_sph_data
+	)	const
+	{
+		return spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+	}
 
 
 
@@ -161,7 +254,6 @@ public:
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
 
 		SPHData out_sph_data = SPHData(sphConfig);
-
 
 #pragma omp parallel for
 		for (int m = 0; m <= i_sph_data.sphConfig->spec_m_max; m++)
@@ -181,6 +273,7 @@ public:
 
 		return out_sph_data;
 	}
+
 
 
 	/**
@@ -270,7 +363,6 @@ public:
 		 * 	first divide by sin(M_PI*0.5-phi) and
 		 * 	second multiply by sqrt(1-mu*mu)
 		 */
-//		SPHData out_sph_data = spec_sinD(i_sph_data);
 		SPHData out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
 		out_sph_data.request_data_spatial();
@@ -325,45 +417,6 @@ public:
 	}
 
 
-#if 0
-	SPHData spec_sinD(
-			const SPHData &i_sph_data
-	)	const
-	{
-		assert(sin_mx != nullptr);
-
-		i_sph_data.request_data_spectral();
-
-		SPHData out_sph_data(i_sph_data.sphConfig);
-		SH_mul_mx(out_sph_data.sphConfig->shtns, sin_mx, i_sph_data.data_spec, out_sph_data.data_spec);
-
-		out_sph_data.data_spec_valid = true;
-		out_sph_data.data_spat_valid = false;
-
-		return out_sph_data;
-	}
-
-
-
-	SPHData spec_cos(
-			const SPHData &i_sph_data
-	)	const
-	{
-		assert(sin_mx != nullptr);
-
-		i_sph_data.request_data_spectral();
-
-		SPHData out_sph_data(i_sph_data.sphConfig);
-		SH_mul_mx(out_sph_data.sphConfig->shtns, cos_mx, i_sph_data.data_spec, out_sph_data.data_spec);
-
-		out_sph_data.data_spec_valid = true;
-		out_sph_data.data_spat_valid = false;
-
-		return out_sph_data;
-	}
-#endif
-
-
 
 	/**
 	 * Divergence Operator along latitude
@@ -376,7 +429,6 @@ public:
 	{
 		SPHData out_sph_data(i_sph_data);
 
-		out_sph_data.request_data_spatial();
 		out_sph_data.spat_update_lambda_cogaussian_grid(
 				[](double lambda, double mu, double &o_data)
 				{
@@ -388,8 +440,7 @@ public:
 		// grad_lat = diff_lat_phi
 		out_sph_data = grad_lat(out_sph_data);
 
-		// undo the sin(theta) which is cos(phi
-		out_sph_data.request_data_spatial();
+		// undo the sin(theta) which is cos(phi)
 		out_sph_data.spat_update_lambda_cogaussian_grid(
 				[](double lambda, double mu, double &o_data)
 				{
@@ -398,6 +449,40 @@ public:
 				}
 			);
 
+		return out_sph_data;
+	}
+
+	/**
+	 * Divergence Operator along latitude
+	 *
+	 * d(sqrt(1-mu*mu)*F)/dmu
+	 */
+	SPHData div_lat_TEST(
+			const SPHData &i_sph_data
+	)	const
+	{
+		SPHData out_sph_data(i_sph_data);
+
+		out_sph_data.spat_update_lambda_cogaussian_grid(
+				[](double lambda, double mu, double &o_data)
+				{
+					//o_data *= cos(phi);
+					o_data *= mu;
+				}
+			);
+
+		// grad_lat = diff_lat_phi
+		out_sph_data = grad_lat(out_sph_data);
+#if 0
+		// undo the sin(theta) which is cos(phi)
+		out_sph_data.spat_update_lambda_cogaussian_grid(
+				[](double lambda, double mu, double &o_data)
+				{
+					o_data /= mu;
+					//o_data /= cos(phi);
+				}
+			);
+#endif
 		return out_sph_data;
 	}
 

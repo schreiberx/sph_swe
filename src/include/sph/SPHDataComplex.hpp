@@ -478,6 +478,36 @@ public:
 
 
 
+	/**
+	 * Solve a Helmholtz problem given by
+	 *
+	 * (a + b D^2) x = rhs
+	 */
+	inline
+	SPHDataComplex spec_solve_helmholtz(
+			const std::complex<double> &i_a,
+			const std::complex<double> &i_b,
+			double r
+	)
+	{
+		SPHDataComplex out(*this);
+
+		const std::complex<double> a = i_a;
+		const std::complex<double> b = i_b/(r*r);
+
+		out.spec_update_lambda(
+			[&](
+				int n, int m,
+				std::complex<double> &io_data
+			)
+			{
+				io_data /= (a + (-b*(double)n*((double)n+1.0)));
+			}
+		);
+
+		return out;
+	}
+
 
 	inline
 	void spec_update_lambda(

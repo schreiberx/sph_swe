@@ -15,7 +15,7 @@
 #include <sph/SPHOperatorsComplex.hpp>
 #include <sph/SPHConfig.hpp>
 #include <sph/SPHSolverComplex.hpp>
-
+#include <rexi/REXI.hpp>
 
 
 class AppTestSPHSolversComplex
@@ -25,6 +25,25 @@ public:
 	SPHOperatorsComplex opComplex;
 
 	SPHConfig *sphConfig;
+
+	double threshold = 1e-10;
+
+	AppTestSPHSolversComplex()
+	{
+	}
+
+
+
+	void test_threshold(double i_value)
+	{
+		if (std::abs(i_value) > threshold)
+		{
+			std::cout << "!!!!!!!!!!!!!!!! ERROR !!!!!!!!!!! threshold exceeded !!!!!!!!!!!!!!!!" << std::endl;
+			exit(1);
+		}
+	}
+
+
 
 	/**
 	 * Run with
@@ -39,30 +58,40 @@ public:
 
 		sphConfig = i_sphConfig;
 
+		SphereTestSolutions_Gaussian testSolutions;
+
+		if (sphConfig->spec_n_max < 32)
 		{
-			SphereTestSolutions_Gaussian testSolutions;
+			std::cerr << "WARNING: AT LEAST 32 MODES REQUIRED for proper accuracy!!!" << std::endl;
+		}
 
-			if (sphConfig->spec_n_max < 32)
-			{
-				std::cerr << "WARNING: AT LEAST 32 MODES REQUIRED for proper accuracy!!!" << std::endl;
-			}
+		/**
+		 * Use test function as expected result
+		 */
+		SPHDataComplex x_result(i_sphConfig);
+		x_result.spat_update_lambda_gaussian_grid(
+				[&](double lat, double mu, std::complex<double> &io_data){
+					double tmp;
+					testSolutions.test_function__grid_gaussian(lat,mu,tmp);
+					io_data = tmp;
+				}
+		);
 
-			/**
-			 * Use test function as expected result
-			 */
-			SPHDataComplex x_result(i_sphConfig);
-			x_result.spat_update_lambda_gaussian_grid(
-					[&](double lat, double mu, std::complex<double> &io_data){
-						double tmp;
-						testSolutions.test_function__grid_gaussian(lat,mu,tmp);
-						io_data = tmp;
-					}
-			);
+		double r = simVars.earth_radius;
+		double two_omega = 2.0*simVars.coriolis_omega;
 
-			std::complex<double> alpha(3.0, 0.0);
-			double r = simVars.earth_radius;
-			double two_omega = 2.0*simVars.coriolis_omega;
 
+		REXI rexi;
+		rexi.setup(0.2, 64);
+
+
+		for (int i = 0; i < rexi.alpha.size(); i++)
+		{
+			std::complex<double> &alpha = rexi.alpha[i];
+			std::cout << std::endl;
+			std::cout << "***************************************************" << std::endl;
+			std::cout << "Testing for alpha " << alpha << std::endl;
+			std::cout << "***************************************************" << std::endl;
 
 
 			/*
@@ -86,7 +115,7 @@ public:
 						{
 							double tmp;
 							testSolutions.test_function__grid_gaussian(lat,mu,tmp);
-							io_data = tmp*alpha.real();
+							io_data = tmp*alpha;
 						}
 				);
 
@@ -94,6 +123,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 			/*
@@ -117,7 +147,7 @@ public:
 							double fun;
 							testSolutions.test_function__grid_gaussian(lat,mu,fun);
 
-							io_data = mu*fun+alpha.real()*fun;
+							io_data = mu*fun+alpha*fun;
 						}
 				);
 
@@ -129,6 +159,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 			/*
@@ -141,7 +172,7 @@ public:
 				SPHSolverComplex<std::complex<double>> sphSolver;
 				sphSolver.setup(sphConfig, 2);
 
-				std::complex<double> a(alpha.real());
+				std::complex<double> a(alpha);
 				sphSolver.solver_component_scalar_phi(a);
 				sphSolver.solver_component_one_minus_mu_mu_diff_mu_phi();
 
@@ -155,7 +186,7 @@ public:
 							double one_minus_m2_dfun;
 							testSolutions.correct_result_one_minus_mu_squared_diff_lat_mu__grid_gaussian(lat, mu, one_minus_m2_dfun);
 
-							io_data = one_minus_m2_dfun + alpha.real()*fun;
+							io_data = one_minus_m2_dfun + alpha*fun;
 						}
 				);
 
@@ -163,6 +194,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 			std::cout << "************************************************************" << std::endl;
@@ -198,6 +230,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 			/*
@@ -227,50 +260,9 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
-			/*
-			 * Test Z2 = mu^2 * Phi(mu)
-			 */
-#if 0
-			if (true)
-			{
-				std::cout << "Test Z2 = mu^2*Phi(lam,mu) (DOUBLE MODES)";
-
-				SPHConfig sphConfigDouble;
-				sphConfigDouble.setupDouble(sphConfig);
-
-				SPHSolver< std::complex<double> > sphSolver;
-				sphSolver.setup(&sphConfigDouble, 2);
-
-				std::complex<double> scalar = alpha*alpha*two_omega*two_omega;
-				sphSolver.solver_component_rexi_z2(scalar, r);
-
-				SPHDataComplex b(&sphConfigDouble);
-				b.spat_update_lambda_gaussian_grid(
-						[&](double lat, double mu, std::complex<double> &io_data){
-							testSolutions.test_function__grid_gaussian(lat,mu,io_data);
-							io_data = scalar*(mu*mu)*io_data;
-						}
-				);
-
-				SPHDataComplex x_numerical_double = sphSolver.solve(b);
-
-				SPHDataComplex x_numerical(sphConfig);
-
-				x_numerical.spec_set_zero();
-				x_numerical.spec_update_lambda(
-						[&](int n, int m, std::complex<double> &io_data)
-						{
-							io_data = x_numerical_double.spec_get(n, m);
-						}
-				);
-
-				double error_max = x_numerical.spat_reduce_error_max(x_result);
-				std::cout << " ||| Error: " << error_max << std::endl;
-			}
-
-#endif
 
 			/*
 			 * Test Z3 = mu^4 * Phi(mu)
@@ -300,6 +292,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 
@@ -329,7 +322,7 @@ public:
 							double dlambda_fun;
 							testSolutions.correct_result_diff_lambda__grid_gaussian(lat, mu, dlambda_fun);
 
-							io_data = scalar/(r*r)*dlambda_fun + fun*alpha.real();
+							io_data = scalar/(r*r)*dlambda_fun + fun*alpha;
 						}
 				);
 
@@ -337,6 +330,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 
@@ -366,7 +360,7 @@ public:
 							double dgrad_lambda_fun;
 							testSolutions.correct_result_grad_lambda__grid_gaussian(lat, mu, dgrad_lambda_fun);
 
-							io_data = scalar/(r*r)*std::sqrt(1.0-mu*mu)*mu*mu*dgrad_lambda_fun + fun*alpha.real();
+							io_data = scalar/(r*r)*std::sqrt(1.0-mu*mu)*mu*mu*dgrad_lambda_fun + fun*alpha;
 						}
 				);
 
@@ -374,6 +368,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 
@@ -403,7 +398,7 @@ public:
 							double dgrad_mu_fun;
 							testSolutions.correct_result_grad_phi__grid_gaussian(lat, mu, dgrad_mu_fun);
 
-							io_data = scalar/(r*r)*std::sqrt(1.0-mu*mu)*mu*dgrad_mu_fun + fun*alpha.real();
+							io_data = scalar/(r*r)*std::sqrt(1.0-mu*mu)*mu*dgrad_mu_fun + fun*alpha;
 						}
 				);
 
@@ -411,6 +406,7 @@ public:
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 
@@ -440,12 +436,13 @@ public:
 						}
 				);
 
-				b = opComplex.laplace(b)*scalar/(r*r) + b*alpha.real();
+				b = opComplex.laplace(b)*scalar/(r*r) + b*alpha;
 
 				SPHDataComplex x_numerical = sphSolver.solve(b);
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 
@@ -476,12 +473,48 @@ public:
 						}
 				);
 
-				b = opComplex.mu2(opComplex.laplace(b))*scalar/(r*r) + b*alpha.real();
+				b = opComplex.mu2(opComplex.laplace(b))*scalar/(r*r) + b*alpha;
 
 				SPHDataComplex x_numerical = sphSolver.solve(b);
 
 				double error_max = x_numerical.spat_reduce_error_max(x_result);
 				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
+			}
+
+
+			/*
+			 * Test direct Helmholtz problem solver
+			 * (a + b D^2) x = rhs
+			 */
+			if (true)
+			{
+				std::cout << "Test Zx = a + b*laplace";
+
+				SPHDataComplex testb(i_sphConfig);
+				testb.spat_update_lambda_gaussian_grid(
+						[&](double lat, double mu, std::complex<double> &io_data)
+						{
+							double tmp;
+							testSolutions.test_function__grid_gaussian(lat, mu, tmp);
+							io_data = tmp;
+						}
+				);
+
+				std::complex<double> a = alpha;
+				std::complex<double> b = alpha*2.0-1.0;
+				double r = simVars.earth_radius;
+
+				testb = a*testb + (b/(r*r))*opComplex.laplace(testb);
+
+				SPHDataComplex x_numerical = testb.spec_solve_helmholtz(a, b, r);
+
+				//testb.spat_print();
+				//x_numerical.spat_print();
+
+				double error_max = x_numerical.spat_reduce_error_max(x_result);
+				std::cout << " ||| Error: " << error_max << std::endl;
+				test_threshold(error_max);
 			}
 
 		}

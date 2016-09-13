@@ -103,6 +103,10 @@ int setup(
 			{
 				simVars.rexi_M = atoi(&(i_argv[i][1]));
 			}
+			else if (i_argv[i][0] == 'S')
+			{
+				simVars.swe_variant = atoi(&(i_argv[i][1]));
+			}
 		}
 	}
 	else

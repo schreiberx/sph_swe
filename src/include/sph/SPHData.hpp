@@ -533,7 +533,7 @@ public:
 	/*
 	 * Set values for all latitude and longitude degrees
 	 *
-	 * lambda function parameters: (longitude \in [0;2*pi], Gaussian latitude \in [-1;1])
+	 * lambda function parameters: (longitude \in [0;2*pi], Gaussian latitude sin(phi) \in [-1;1])
 	 */
 	void spat_update_lambda_gaussian_grid(
 			std::function<void(double,double,double&)> i_lambda	///< lambda function to return value for lat/mu
@@ -549,9 +549,9 @@ public:
 
 			for (int j = 0; j < sphConfig->spat_num_lat; j++)
 			{
-				double mu = sphConfig->lat_gaussian[j];
+				double sin_phi = sphConfig->lat_gaussian[j];
 
-				i_lambda(lon_degree, mu, data_spat[i*sphConfig->spat_num_lat + j]);
+				i_lambda(lon_degree, sin_phi, data_spat[i*sphConfig->spat_num_lat + j]);
 			}
 		}
 
@@ -565,7 +565,8 @@ public:
 	/*
 	 * Set values for all latitude and longitude degrees
 	 *
-	 * lambda function parameters: (longitude \in [0;2*pi], Gaussian latitude \in [-1;1])
+	 * lambda function parameters:
+	 *   (longitude \in [0;2*pi], Cogaussian latitude cos(phi) \in [0;1])
 	 */
 
 	void spat_update_lambda_cogaussian_grid(
@@ -582,19 +583,36 @@ public:
 
 			for (int j = 0; j < sphConfig->spat_num_lat; j++)
 			{
-				double comu = sphConfig->shtns->st[j];
+				double cos_phi = sphConfig->lat_cogaussian[j];
+
+//				std::cout << cos_phi << std::endl;
 				/*
 				 * IDENTITAL FORMULATION
 				double mu = shtns->ct[j];
 				double comu = sqrt(1.0-mu*mu);
 				*/
 
-				i_lambda(lon_degree, comu, data_spat[i*sphConfig->spat_num_lat + j]);
+				i_lambda(lon_degree, cos_phi, data_spat[i*sphConfig->spat_num_lat + j]);
 			}
 		}
 
 		data_spat_valid = true;
 		data_spec_valid = false;
+	}
+
+
+	void spat_update_lambda_sinphi_grid(
+			std::function<void(double,double,double&)> i_lambda	///< lambda function to return value for lat/mu
+	)
+	{
+		spat_update_lambda_gaussian_grid(i_lambda);
+	}
+
+	void spat_update_lambda_cosphi_grid(
+			std::function<void(double,double,double&)> i_lambda	///< lambda function to return value for lat/mu
+	)
+	{
+		spat_update_lambda_cogaussian_grid(i_lambda);
 	}
 
 
@@ -608,6 +626,23 @@ public:
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
 			for (int j = 0; j < sphConfig->spat_num_lat; j++)
 				data_spat[i*sphConfig->spat_num_lat + j] = 0;
+
+		data_spat_valid = true;
+		data_spec_valid = false;
+	}
+
+
+	/*
+	 * Set all values to a specific value
+	 */
+	void spat_set_value(
+			double i_value
+	)
+	{
+#pragma omp parallel for
+		for (int i = 0; i < sphConfig->spat_num_lon; i++)
+			for (int j = 0; j < sphConfig->spat_num_lat; j++)
+				data_spat[i*sphConfig->spat_num_lat + j] = i_value;
 
 		data_spat_valid = true;
 		data_spec_valid = false;

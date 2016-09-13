@@ -327,7 +327,6 @@ public:
 						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
 				);
 				h = op.grad_lat(h);
-				//h = h.spat_truncate();
 				h.spat_write_file("O_grad_phi_sph_result.csv");
 
 				SPHData result(i_sphConfig);
@@ -350,14 +349,12 @@ public:
 						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
 				);
 				h = op.div_lon(h);
-				//h = h.spat_truncate();
 				h.spat_write_file("O_div_lambda_sph_result.csv");
 
 				SPHData result(i_sphConfig);
 				result.spat_update_lambda_gaussian_grid(
 						[&](double a, double b, double &c){testSolutions.correct_result_div_lambda__grid_gaussian(a,b,c);}
 				);
-				//result = result.spat_truncate();
 				result.spat_write_file("O_div_lambda_correct_result.csv");
 
 				double error_max = h.spat_reduce_error_max(result);
@@ -373,21 +370,125 @@ public:
 						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
 				);
 				h = op.div_lat(h);
-				//h = h.spat_truncate();
 				h.spat_write_file("O_div_mu_sph_result.csv");
 
 				SPHData result(i_sphConfig);
 				result.spat_update_lambda_gaussian_grid(
 						[&](double a, double b, double &c){testSolutions.correct_result_div_mu__grid_gaussian(a,b,c);}
 				);
-				//result = result.spat_truncate();
 
 				result.spat_write_file("O_div_mu_correct_result.csv");
-
 				(h-result).spat_write_file("O_div_mu_correct_diff.csv");
 
 				double error_max = h.spat_reduce_error_max(result);
 				std::cout << "TEST DIV LAT  - max error: " << error_max << std::endl;
+			}
+
+
+			if (true)
+			{
+				// div mu TEST
+				SPHData h(i_sphConfig);
+				h.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
+				);
+				h = op.div_lat_TEST(h);
+				h.spat_write_file("O_div_mu_TEST_sph_result.csv");
+#if 0
+				h.spat_update_lambda_cogaussian_grid(
+						[&](double a, double mu, double &c){
+							c *= mu;
+						}
+				);
+#endif
+				SPHData result(i_sphConfig);
+				result.spat_update_lambda_gaussian_grid(
+						[&](double a, double mu, double &c){
+							testSolutions.correct_result_div_mu__grid_gaussian(a,mu,c);
+						}
+				);
+				result.spat_update_lambda_cogaussian_grid(
+						[&](double a, double mu, double &c){
+							c *= mu;
+						}
+				);
+
+				result.spat_write_file("O_div_mu_TEST_correct_result.csv");
+				(h-result).spat_write_file("O_div_mu_TEST_correct_diff.csv");
+
+				double error_max = h.spat_reduce_error_max(result);
+				std::cout << "TEST DIV TEST LAT  - max error: " << error_max << std::endl;
+			}
+
+
+			if (true)
+			{
+				// divergence
+				SPHData h(i_sphConfig);
+				h.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
+				);
+				h = op.div(h, h);
+//				h.spat_update_lambda_gaussian_grid([&](double a, double mu, double &c){c *= mu*mu*mu*mu;});
+				h.spat_write_file("O_divergence_sph_result.csv");
+
+				SPHData result(i_sphConfig);
+				result.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){
+
+							double data1;
+							testSolutions.correct_result_div_mu__grid_gaussian(a,b,data1);
+
+							double data2;
+							testSolutions.correct_result_div_lambda__grid_gaussian(a,b,data2);
+
+							c = data1 + data2;
+						}
+				);
+//				result.spat_update_lambda_gaussian_grid([&](double a, double mu, double &c){c *= mu*mu*mu*mu;});
+				//result = result.spat_truncate();
+
+				result.spat_write_file("O_divergence_correct_result.csv");
+
+				(h-result).spat_write_file("O_divergence_correct_diff.csv");
+
+				double error_max = h.spat_reduce_error_max(result);
+				std::cout << "TEST DIVERGENCE - max error: " << error_max << std::endl;
+			}
+
+
+			if (true)
+			{
+				// vorticity
+				SPHData h(i_sphConfig);
+				h.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){testSolutions.test_function__grid_gaussian(a,b,c);}
+				);
+				h = op.vort(h, h);
+				//h = h.spat_truncate();
+				h.spat_write_file("O_vort_sph_result.csv");
+
+				SPHData result(i_sphConfig);
+				result.spat_update_lambda_gaussian_grid(
+						[&](double a, double b, double &c){
+
+							double data1;
+							testSolutions.correct_result_grad_lambda__grid_gaussian(a,b,data1);
+
+							double data2;
+							testSolutions.correct_result_grad_phi__grid_gaussian(a,b,data2);
+
+							c = data1 - data2;
+						}
+				);
+				//result = result.spat_truncate();
+
+				result.spat_write_file("O_vort_correct_result.csv");
+
+				(h-result).spat_write_file("O_vort_correct_diff.csv");
+
+				double error_max = h.spat_reduce_error_max(result);
+				std::cout << "TEST VORTICITY - max error: " << error_max << std::endl;
 			}
 
 
