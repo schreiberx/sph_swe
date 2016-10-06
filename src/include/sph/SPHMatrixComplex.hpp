@@ -15,7 +15,7 @@
 
 /**
  * Matrix to store coefficients related to Spherical Harmonics
- * This version is for complex spatial valued transformations
+ * This version is for complex physical valued transformations
  */
 template <typename T>
 class SPHMatrixComplex

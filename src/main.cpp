@@ -44,7 +44,7 @@ int setup(
 	{
 		std::cerr << "Usage: " << i_argv[0] << " T[n]                         # Use T notation" << std::endl;
 		std::cerr << "   OR: " << i_argv[0] << " [n] [m]                      # set modes" << std::endl;
-		std::cerr << "   OR: " << i_argv[0] << " [n] [m] [res_lon] [res_lat]  # set modes and spatial resolution" << std::endl;
+		std::cerr << "   OR: " << i_argv[0] << " [n] [m] [res_lon] [res_lat]  # set modes and physical resolution" << std::endl;
 		return -1;
 	}
 
@@ -81,15 +81,37 @@ int setup(
 			}
 			else if (i_argv[i][0] == 'M')
 			{
-				simVars.timestepping_method = atoi(&(i_argv[i][1]));
+				simVars.rexi_M = atoi(&(i_argv[i][1]));
+				simVars.use_rexi = simVars.rexi_M > 0;
+			}
+			else if (i_argv[i][0] == 'H')
+			{
+				simVars.rexi_h = atof(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'I')
+			{
+				simVars.rexi_use_half_poles = atoi(&(i_argv[i][1]));
 			}
 			else if (i_argv[i][0] == 'R')
 			{
 				simVars.timecontrol.current_timestep_size = atof(&(i_argv[i][1]));
 			}
+			else if (i_argv[i][0] == 'S')
+			{
+				simVars.use_robert_functions = atoi(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'X')
+			{
+				simVars.rexi_use_extended_modes = atoi(&(i_argv[i][1]));
+			}
+			else if (i_argv[i][0] == 'Q')
+			{
+				simVars.benchmark_scenario_id = atoi(&(i_argv[i][1]));
+			}
 			else if (i_argv[i][0] == 'E')
 			{
 				simVars.timecontrol.max_simulation_time = atof(&(i_argv[i][1]));
+				std::cout << simVars.timecontrol.max_simulation_time << std::endl;
 			}
 			else if (i_argv[i][0] == 'V')
 			{
@@ -102,10 +124,6 @@ int setup(
 			else if (i_argv[i][0] == 'W')
 			{
 				simVars.rexi_M = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'S')
-			{
-				simVars.swe_variant = atoi(&(i_argv[i][1]));
 			}
 		}
 	}
@@ -128,7 +146,7 @@ int setup(
 		simVars.spec_res_m = simVars.spec_res_n;
 
 #if 0
-	// let shtns choose the spatial resolution
+	// let shtns choose the physical resolution
 
 	/*
 	 * See Hack&Jakob, Eq. (3.10)
@@ -169,22 +187,22 @@ int setup(
 
 	if (simVars.spat_res_lon <= 0)
 	{
-		io_sphConfig->setupAuto(
+		io_sphConfig->setupAutoPhysicalSpace(
 				simVars.spec_res_n, simVars.spec_res_m,		// spectral (lon/lat)
-				&simVars.spat_res_lon, &simVars.spat_res_lat	// spatial (lon/lat)
+				&simVars.spat_res_lon, &simVars.spat_res_lat	// physical (lon/lat)
 		);
 	}
 	else
 	{
 		io_sphConfig->setup(
 				simVars.spec_res_n, simVars.spec_res_m,		// spectral (lon/lat)
-				simVars.spat_res_lon, simVars.spat_res_lat	// spatial (lon/lat)
+				simVars.spat_res_lon, simVars.spat_res_lat	// physical (lon/lat)
 			);
 	}
 
 	std::cout << "Using spectral modes m=" << simVars.spec_res_m << " and n=" << simVars.spec_res_n << std::endl;
-	std::cout << "Requested spatial resolution " << simVars.spat_res_lon << " x " << simVars.spat_res_lat << std::endl;
-	std::cout << "Using spatial resolution " << io_sphConfig->spat_num_lon << " x " << io_sphConfig->spat_num_lat << std::endl;
+	std::cout << "Requested physical resolution " << simVars.spat_res_lon << " x " << simVars.spat_res_lat << std::endl;
+	std::cout << "Using physical resolution " << io_sphConfig->spat_num_lon << " x " << io_sphConfig->spat_num_lat << std::endl;
 	std::cout << "Using scalar for Coriolis " << simVars.coriolis_omega << std::endl;
 
 	return 0;

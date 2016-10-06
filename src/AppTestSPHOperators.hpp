@@ -383,7 +383,7 @@ public:
 				double error_max = h.spat_reduce_error_max(result);
 				std::cout << "TEST DIV LAT  - max error: " << error_max << std::endl;
 			}
-
+#if 0
 
 			if (true)
 			{
@@ -419,7 +419,7 @@ public:
 				double error_max = h.spat_reduce_error_max(result);
 				std::cout << "TEST DIV TEST LAT  - max error: " << error_max << std::endl;
 			}
-
+#endif
 
 			if (true)
 			{
@@ -516,7 +516,7 @@ public:
 				(h-result).spat_write_file("O_laplace_laplace_z_diff.csv");
 
 				double error_max = h.spat_reduce_error_max(result);
-				std::cout << "TEST LAPLACE  - max error: " << error_max << std::endl;
+				std::cout << "TEST LAPLACE (div.grad vs. sph laplace) - max error: " << error_max << std::endl;
 			}
 		}
 	}

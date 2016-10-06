@@ -12,36 +12,14 @@
 #include <sph/SPHIdentities.hpp>
 #include <sweet/MemBlockAlloc.hpp>
 
+
+
 class SPHOperators	:
 		public SPHIdentities
 {
 	friend SPHConfig;
 
 
-#if 0
-public:
-	/**
-	 * Compute the coriolis effect on the given velocity
-	 *
-	 * multiply (n=1, m=0) with \Omega sqrt(8/3)
-	 */
-	SPHData coriolis(
-			const SPHData &i_sph_data,
-			double i_coriolis_frequency
-	)	const
-	{
-		// THIS IS NOT WORKING
-		assert(false);
-		SPHData out_sph_data(i_sph_data);
-
-		out_sph_data.request_data_spectral();
-
-		std::size_t idx = LM(i_sph_data.sphConfig->shtns, 1, 0);
-		out_sph_data.data_spat[idx] *= i_coriolis_frequency*std::sqrt(8.0/3.0);
-
-		return out_sph_data;
-	}
-#endif
 
 public:
 	/**
@@ -127,7 +105,7 @@ public:
 
 		SPHData out_sph_data = diff_lon(i_sph_data);
 
-		out_sph_data.request_data_spatial();
+		out_sph_data.request_data_physical();
 
 		out_sph_data.spat_update_lambda_gaussian_grid(
 				[this](double lambda, double mu, double &o_data)
@@ -152,8 +130,10 @@ public:
 			const SPHData &i_sph_data
 	)	const
 	{
+		// Entirely in spectral space
 		SPHData out = diff_lon(i_sph_data);
 
+		// Physical space
 		out.spat_update_lambda_cosphi_grid(
 				[](double lambda, double cos_phi, double &o_data)
 				{
@@ -180,8 +160,10 @@ public:
 		 * Compute
 		 *   cos^2(phi) * d/d mu  f(lambda,mu)
 		 */
+		// Entirely in spectral space
 		SPHData out = spec_cosphi_squared_diff_lat_mu(i_sph_data);
 
+		// Physical space
 		out.spat_update_lambda_cosphi_grid(
 				[](double lambda, double cos_phi, double &o_data)
 				{
@@ -205,6 +187,7 @@ public:
 			const SPHData &i_sph_data
 	)	const
 	{
+		// Entirely in spectral space
 		return diff_lon(i_sph_data);
 	}
 
@@ -221,7 +204,9 @@ public:
 			const SPHData &i_sph_data
 	)	const
 	{
-		return spec_cosphi_squared_diff_lat_mu(i_sph_data);
+		// Entirely in spectral space
+		//return spec_cosphi_squared_diff_lat_mu(i_sph_data);
+		return spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 	}
 
 
@@ -365,7 +350,7 @@ public:
 		 */
 		SPHData out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
-		out_sph_data.request_data_spatial();
+		out_sph_data.request_data_physical();
 		out_sph_data.spat_update_lambda_gaussian_grid(
 				[this](double lambda, double mu, double &o_data)
 				{
@@ -384,7 +369,7 @@ public:
 		 * Therefore this was commented.
 		 */
 		// undo the sin(theta) and multiply with sqrt(1-mu*mu)
-		out_sph_data.request_data_spatial();
+		out_sph_data.request_data_physical();
 		out_sph_data.spat_update_lambda_gaussian_grid(
 				[this](double lambda, double mu, double &o_data)
 				{
@@ -452,6 +437,7 @@ public:
 		return out_sph_data;
 	}
 
+#if 0
 	/**
 	 * Divergence Operator along latitude
 	 *
@@ -485,6 +471,7 @@ public:
 #endif
 		return out_sph_data;
 	}
+#endif
 
 
 

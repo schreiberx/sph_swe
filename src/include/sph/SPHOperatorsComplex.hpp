@@ -16,42 +16,6 @@ class SPHOperatorsComplex	:
 {
 	friend SPHConfig;
 
-public:
-	void setup(
-			SPHConfig *i_sphConfig
-	)
-	{
-	}
-
-	~SPHOperatorsComplex()
-	{
-	}
-
-
-#if 0
-public:
-	/**
-	 * Compute the coriolis effect on the given velocity
-	 *
-	 * multiply (n=1, m=0) with \Omega sqrt(8/3)
-	 */
-	SPHDataComplex coriolis(
-			const SPHDataComplex &i_sph_data,
-			double i_coriolis_frequency
-	)	const
-	{
-		// THIS IS NOT WORKING
-		assert(false);
-		SPHDataComplex out_sph_data(i_sph_data);
-
-		out_sph_data.request_data_spectral();
-
-		std::size_t idx = LM(i_sph_data.sphConfig->shtns, 1, 0);
-		out_sph_data.data_spat[idx] *= i_coriolis_frequency*std::sqrt(8.0/3.0);
-
-		return out_sph_data;
-	}
-#endif
 
 public:
 	/**
@@ -59,9 +23,10 @@ public:
 	 *
 	 * d/d lambda f(lambda,mu)
 	 */
+	static
 	SPHDataComplex diff_lon(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		i_sph_data.request_data_spectral();
 
@@ -93,15 +58,16 @@ public:
 	 *
 	 * sqrt(1-mu*mu)*d/dmu P_n^m = ...
 	 */
+	static
 	SPHDataComplex diff_lat_mu(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 
 		SPHDataComplex out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, std::complex<double> &o_data)
+				[](double lambda, double mu, std::complex<double> &o_data)
 				{
 					o_data /= (1.0-mu*mu);
 				}
@@ -117,9 +83,10 @@ public:
 	 *
 	 * Compute d/d phi f(lambda,mu)
 	 */
+	static
 	SPHDataComplex diff_lat_phi(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		return grad_lat(i_sph_data);
 	}
@@ -129,18 +96,15 @@ public:
 	/**
 	 * Compute gradient component along longitude (lambda)
 	 */
+	static
 	SPHDataComplex grad_lon(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
-		i_sph_data.request_data_spectral();
-
 		SPHDataComplex out_sph_data = diff_lon(i_sph_data);
 
-		out_sph_data.request_data_spatial();
-
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, std::complex<double> &o_data)
+				[](double lambda, double mu, std::complex<double> &o_data)
 				{
 					double cos_phi = sqrt(1.0-mu*mu);
 					o_data /= cos_phi;
@@ -151,20 +115,10 @@ public:
 	}
 
 
-#if 0
-	static double fac_double(double v)
-	{
-		double retval = 1;
-	    for (double i = 1; i <= v; ++i)
-	    	retval *= i;
-	    return retval;
-	}
-#endif
-
-
+	static
 	SPHDataComplex spec_one_minus_mu_squared_diff_lat_mu(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		i_sph_data.request_data_spectral();
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
@@ -197,9 +151,10 @@ public:
 	 * Compute
 	 * mu*F(\lambda,\mu)
 	 */
+	static
 	SPHDataComplex mu(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
 		i_sph_data.request_data_spectral();
@@ -230,9 +185,10 @@ public:
 	 * Compute
 	 * mu*F(\lambda,\mu)
 	 */
+	static
 	SPHDataComplex mu2(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		SPHConfig *sphConfig = i_sph_data.sphConfig;
 		i_sph_data.request_data_spectral();
@@ -264,9 +220,10 @@ public:
 	/**
 	 * Compute gradient component along latitude
 	 */
+	static
 	SPHDataComplex grad_lat(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		/*
 		 * compute sin(theta)*d/d theta
@@ -279,9 +236,9 @@ public:
 //		SPHDataComplex out_sph_data = spec_sinD(i_sph_data);
 		SPHDataComplex out_sph_data = spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
 
-		out_sph_data.request_data_spatial();
+		out_sph_data.request_data_physical();
 		out_sph_data.spat_update_lambda_gaussian_grid(
-				[this](double lambda, double mu, std::complex<double> &o_data)
+				[](double lambda, double mu, std::complex<double> &o_data)
 				{
 					double phi = asin(mu);
 
@@ -298,7 +255,7 @@ public:
 		 * Therefore this was commented.
 		 */
 		// undo the sin(theta) and multiply with sqrt(1-mu*mu)
-		out_sph_data.request_data_spatial();
+		out_sph_data.request_data_physical();
 		out_sph_data.spat_update_lambda_gaussian_grid(
 				[this](double lambda, double mu, double &o_data)
 				{
@@ -323,9 +280,10 @@ public:
 	 *
 	 * Identical to gradient operator along longitude
 	 */
+	static
 	SPHDataComplex div_lon(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		return grad_lon(i_sph_data);
 	}
@@ -338,9 +296,10 @@ public:
 	 *
 	 * d(sqrt(1-mu*mu)*F)/dmu
 	 */
+	static
 	SPHDataComplex div_lat(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		SPHDataComplex out_sph_data(i_sph_data);
 
@@ -379,11 +338,122 @@ public:
 
 
 	/**
+	 * Divergence Operator along longitude for robert function formlation
+	 *
+	 * This computes
+	 * 	1/cos^2(phi)  d/dlambda U
+	 */
+	static
+	SPHDataComplex robert_div_lon(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		SPHDataComplex out = diff_lon(i_sph_data);
+
+		out.spat_update_lambda_cosphi_grid(
+				[](double lambda, double cos_phi, std::complex<double> &o_data)
+				{
+					o_data /= cos_phi*cos_phi;
+				}
+			);
+
+		return out;
+	}
+
+
+
+	/**
+	 * Compute divergence along latitude for robert function formulation
+	 *
+	 * This computes
+	 * 		d/dmu V
+	 */
+	static
+	SPHDataComplex robert_div_lat(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		/*
+		 * Compute
+		 *   cos^2(phi) * d/d mu  f(lambda,mu)
+		 */
+		SPHDataComplex out = spec_cosphi_squared_diff_lat_mu(i_sph_data);
+
+		out.spat_update_lambda_cosphi_grid(
+				[](double lambda, double cos_phi, std::complex<double> &o_data)
+				{
+					o_data /= cos_phi*cos_phi;
+				}
+			);
+
+		return out;
+	}
+
+
+
+	/**
+	 * Compute gradient component along longitude (lambda) for Robert function formulation
+	 *
+	 * This computes
+	 * 		d/dlambda Phi
+	 * with Phi the geopotential
+	 */
+	static
+	SPHDataComplex robert_grad_lon(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		return diff_lon(i_sph_data);
+	}
+
+
+	/**
+	 * Compute gradient component along latitude for Robert function formulation
+	 *
+	 * This computes
+	 * 		cos^2(phi) * d/dmu Phi
+	 *
+	 * with Phi the geopotential
+	 */
+	static
+	SPHDataComplex robert_grad_lat(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		return spec_cosphi_squared_diff_lat_mu(i_sph_data);
+	}
+
+
+
+	inline
+	static
+	SPHDataComplex spec_one_minus_sinphi_squared_diff_lat_mu(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		return spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+	}
+
+
+
+	inline
+	static
+	SPHDataComplex spec_cosphi_squared_diff_lat_mu(
+			const SPHDataComplex &i_sph_data
+	)
+	{
+		return spec_one_minus_mu_squared_diff_lat_mu(i_sph_data);
+	}
+
+
+
+	/**
 	 * Laplace operator
 	 */
+	static
 	SPHDataComplex laplace(
 			const SPHDataComplex &i_sph_data
-	)	const
+	)
 	{
 		i_sph_data.request_data_spectral();
 
@@ -406,12 +476,29 @@ public:
 	 *
 	 * \eta = grad_lat(V_lon) - grad_lon(V_lat)
 	 */
+	static
 	SPHDataComplex vort(
 			const SPHDataComplex &i_lon,
 			const SPHDataComplex &i_lat
-	)	const
+	)
 	{
 		return grad_lon(i_lat) - grad_lat(i_lon);
+	}
+
+
+public:
+	/**
+	 * Compute vorticity
+	 *
+	 * \eta = grad_lat(V_lon) - grad_lon(V_lat)
+	 */
+	static
+	SPHDataComplex robert_vort(
+			const SPHDataComplex &i_lon,
+			const SPHDataComplex &i_lat
+	)
+	{
+		return robert_grad_lon(i_lat) - robert_grad_lat(i_lon);
 	}
 
 
@@ -422,12 +509,44 @@ public:
 	 *
 	 * \delta = div_lon(i_lon) + div_lan(i_lan)
 	 */
+	static
 	SPHDataComplex div(
 			const SPHDataComplex &i_lon,
 			const SPHDataComplex &i_lat
-	)	const
+	)
 	{
 		return div_lon(i_lon) + div_lat(i_lat);
+	}
+
+
+
+public:
+	/**
+	 * Compute divergence
+	 *
+	 * \delta = div_lon(i_lon) + div_lan(i_lan)
+	 */
+	static
+	SPHDataComplex robert_div(
+			const SPHDataComplex &i_lon,
+			const SPHDataComplex &i_lat
+	)
+	{
+#if 0
+		return robert_div_lon(i_lon) + robert_div_lat(i_lat);
+#else
+		// Only compute division once
+		SPHDataComplex out = diff_lon(i_lon) + spec_cosphi_squared_diff_lat_mu(i_lat);
+
+		out.spat_update_lambda_cosphi_grid(
+				[](double lambda, double cos_phi, std::complex<double> &o_data)
+				{
+					o_data /= cos_phi*cos_phi;
+				}
+			);
+
+		return out;
+#endif
 	}
 };
 

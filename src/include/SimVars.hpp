@@ -32,16 +32,37 @@ struct SimVars
 	double output_dt = 0.2;
 	double next_output_dt = 0;
 
+	double rexi_h = 0.2;
 	int rexi_M = 128;
+	bool rexi_use_half_poles = true;
+
 	/*
 	 * (phi, u, v) = (geopotential, velocity u, velocity v)
 	 *
 	 * 0: (phi, u, v)
 	 * 1: (phi, U, V) with U=cos(phi)u and V=cos(phi)v
 	 */
-	int swe_variant = 0;
+	int use_robert_functions = 0;
 
-	int timestepping_method = 0;
+
+	/*
+	 * Use more modes for REXI time step approximation
+	 */
+	int rexi_use_extended_modes = 0;
+
+
+	/*
+	 * false: Use standard time stepping
+	 * true: Use REXI
+	 */
+	bool use_rexi = false;
+
+
+	/*
+	 * Benchmark scenario / initial conditions, etc.
+	 */
+	int benchmark_scenario_id = 0;
+//	int timestepping_method = 0;
 
 	bool use_nonlinear_equations = true;
 	double h0 = 10000.0;

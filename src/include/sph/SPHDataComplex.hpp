@@ -77,11 +77,29 @@ public:
 	}
 
 
+	/**
+	 * Run validation checks to make sure that the physical and spectral spaces match in size
+	 */
+public:
+	inline void check(SPHConfig *i_sphConfig)	const
+	{
+		assert(sphConfig->spat_num_lat == i_sphConfig->spat_num_lat);
+		assert(sphConfig->spat_num_lon == i_sphConfig->spat_num_lon);
+
+		assert(sphConfig->spec_m_max == i_sphConfig->spec_m_max);
+		assert(sphConfig->spec_n_max == i_sphConfig->spec_n_max);
+	}
+
+
 public:
 	SPHDataComplex& operator=(
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
+		assert(sphConfig == i_sph_data.sphConfig);
+
 		spat_fromSPHData(i_sph_data);
 		return *this;
 	}
@@ -91,6 +109,8 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		if (i_sph_data.data_spat_valid)
 			memcpy(data_spat, i_sph_data.data_spat, sizeof(cplx)*sphConfig->spat_num_elems);
 
@@ -110,7 +130,9 @@ public:
 			SPHData &o_sph_data
 	)
 	{
-		request_data_spatial();
+		check(o_sph_data.sphConfig);
+
+		request_data_physical();
 
 		for (std::size_t i = 0; i < sphConfig->spat_num_elems; i++)
 			o_sph_data.data_spat[i] = data_spat[i].real();
@@ -124,7 +146,9 @@ public:
 			SPHData &o_sph_data
 	)
 	{
-		request_data_spatial();
+		check(o_sph_data.sphConfig);
+
+		request_data_physical();
 
 		for (std::size_t i = 0; i < sphConfig->spat_num_elems; i++)
 			o_sph_data.data_spat[i] = data_spat[i].imag();
@@ -139,7 +163,9 @@ public:
 			const SPHData &i_sph_data
 	)
 	{
-		i_sph_data.request_data_spatial();
+		check(i_sph_data.sphConfig);
+
+		i_sph_data.request_data_physical();
 
 		for (std::size_t i = 0; i < sphConfig->spat_num_elems; i++)
 			data_spat[i] = i_sph_data.data_spat[i];
@@ -170,7 +196,7 @@ public:
 	}
 
 
-	void request_data_spatial()	const
+	void request_data_physical()	const
 	{
 		if (data_spat_valid)
 			return;
@@ -194,6 +220,8 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -214,6 +242,8 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -232,6 +262,8 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -251,6 +283,8 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -288,8 +322,10 @@ public:
 			const SPHDataComplex &i_sph_data
 	)	const
 	{
-		request_data_spatial();
-		i_sph_data.request_data_spatial();
+		check(i_sph_data.sphConfig);
+
+		request_data_physical();
+		i_sph_data.request_data_physical();
 
 		SPHDataComplex out_sph_data(sphConfig);
 
@@ -427,7 +463,7 @@ public:
 	 */
 	SPHDataComplex spat_truncate()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		SPHDataComplex out_sph_data(sphConfig);
 		spat_cplx_to_SH(sphConfig->shtns, data_spat, out_sph_data.data_spec);
@@ -534,6 +570,23 @@ public:
 	}
 
 
+
+	void spat_update_lambda_sinphi_grid(
+			std::function<void(double,double,std::complex<double>&)> i_lambda	///< lambda function to return value for lat/mu
+	)
+	{
+		spat_update_lambda_gaussian_grid(i_lambda);
+	}
+
+	void spat_update_lambda_cosphi_grid(
+			std::function<void(double,double,std::complex<double>&)> i_lambda	///< lambda function to return value for lat/mu
+	)
+	{
+		spat_update_lambda_cogaussian_grid(i_lambda);
+	}
+
+
+
 	inline
 	const std::complex<double>& spec_get(
 			int in,
@@ -573,7 +626,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -611,7 +664,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -644,7 +697,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -692,8 +745,10 @@ public:
 			const SPHDataComplex &i_sph_data
 	)
 	{
-		request_data_spatial();
-		i_sph_data.request_data_spatial();
+		check(i_sph_data.sphConfig);
+
+		request_data_physical();
+		i_sph_data.request_data_physical();
 
 		double error = -1;
 
@@ -723,7 +778,7 @@ public:
 	 */
 	double spat_reduce_error_max()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		double error = -1;
 
@@ -743,7 +798,9 @@ public:
 		return error;
 	}
 
-	void spec_print(int i_precision = 8)	const
+	void spec_print(
+			int i_precision = 8
+	)	const
 	{
 		request_data_spectral();
 
@@ -764,9 +821,11 @@ public:
 	}
 
 
-	void spat_print(int i_precision = 8)	const
+	void spat_print(
+			int i_precision = 8
+	)	const
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::cout << std::setprecision(i_precision);
 
@@ -802,6 +861,7 @@ public:
 	}
 
 
+
 public:
 
 	void spat_write_file(
@@ -810,7 +870,7 @@ public:
 			int i_precision = 8
 	)	const
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::ofstream file(i_filename, std::ios_base::trunc);
 
@@ -860,7 +920,7 @@ public:
 			int i_precision = 8
 	)
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::ofstream file(i_filename, std::ios_base::trunc);
 

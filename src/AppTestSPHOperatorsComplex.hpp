@@ -29,7 +29,7 @@ public:
 			SPHConfig *i_sphConfig
 	)
 	{
-		opComplex.setup(i_sphConfig);
+//		opComplex.setup(i_sphConfig);
 
 		double epsilon = 1e-10;
 

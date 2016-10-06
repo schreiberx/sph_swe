@@ -66,11 +66,29 @@ public:
 	}
 
 
+
+	/**
+	 * Run validation checks to make sure that the physical and spectral spaces match in size
+	 */
+public:
+	inline void check(SPHConfig *i_sphConfig)	const
+	{
+		assert(sphConfig->spat_num_lat == i_sphConfig->spat_num_lat);
+		assert(sphConfig->spat_num_lon == i_sphConfig->spat_num_lon);
+
+		assert(sphConfig->spec_m_max == i_sphConfig->spec_m_max);
+		assert(sphConfig->spec_n_max == i_sphConfig->spec_n_max);
+	}
+
+
+
 public:
 	SPHData& operator=(
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		if (i_sph_data.data_spat_valid)
 			memcpy(data_spat, i_sph_data.data_spat, sizeof(double)*sphConfig->spat_num_elems);
 
@@ -82,6 +100,91 @@ public:
 
 		return *this;
 	}
+
+
+
+public:
+	const SPHData& spec_copyToDifferentModes(
+			SPHData &o_sph_data
+	)	const
+	{
+		request_data_spectral();
+
+		assert (o_sph_data.sphConfig != sphConfig);
+
+		/*
+		 *  0 = invalid
+		 * -1 = scale down
+		 *  1 = scale up
+		 */
+		int scaling_mode = 0;
+
+		if (sphConfig->spec_m_max < o_sph_data.sphConfig->spec_m_max)
+		{
+			scaling_mode = 1;
+		}
+		else if (sphConfig->spec_m_max > o_sph_data.sphConfig->spec_m_max)
+		{
+			scaling_mode = -1;
+		}
+//		assert(scaling_mode != 0);
+
+
+		if (sphConfig->spec_n_max < o_sph_data.sphConfig->spec_n_max)
+		{
+			assert(scaling_mode != -1);
+			scaling_mode = 1;
+		}
+		else if (sphConfig->spec_n_max > o_sph_data.sphConfig->spec_n_max)
+		{
+			assert(scaling_mode != 1);
+			scaling_mode = -1;
+		}
+		assert(scaling_mode != 0);
+
+
+		if (scaling_mode == -1)
+		{
+			/*
+			 * more modes -> less modes
+			 */
+
+#pragma omp parallel for
+			for (int m = 0; m <= o_sph_data.sphConfig->spec_m_max; m++)
+			{
+				cplx *dst = &o_sph_data.data_spec[o_sph_data.sphConfig->getArrayIndexByModes(m, m)];
+				cplx *src = &data_spec[sphConfig->getArrayIndexByModes(m, m)];
+
+				std::size_t size = sizeof(cplx)*(o_sph_data.sphConfig->spec_n_max-m+1);
+				memcpy(dst, src, size);
+			}
+		}
+		else
+		{
+			/*
+			 * less modes -> more modes
+			 */
+
+			// zero all values
+			o_sph_data.spec_set_zero();
+
+#pragma omp parallel for
+			for (int m = 0; m <= sphConfig->spec_m_max; m++)
+			{
+				cplx *dst = &o_sph_data.data_spec[o_sph_data.sphConfig->getArrayIndexByModes(m, m)];
+				cplx *src = &data_spec[sphConfig->getArrayIndexByModes(m, m)];
+
+				std::size_t size = sizeof(cplx)*(sphConfig->spec_n_max-m+1);
+				memcpy(dst, src, size);
+			}
+		}
+
+		o_sph_data.data_spat_valid = false;
+		o_sph_data.data_spec_valid = true;
+
+		return *this;
+	}
+
 
 	void request_data_spectral()	const
 	{
@@ -103,7 +206,7 @@ public:
 	}
 
 
-	void request_data_spatial()	const
+	void request_data_physical()	const
 	{
 		if (data_spat_valid)
 			return;
@@ -128,6 +231,8 @@ public:
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -144,10 +249,13 @@ public:
 	}
 
 
+
 	SPHData& operator+=(
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -166,6 +274,8 @@ public:
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -185,6 +295,8 @@ public:
 			const SPHData &i_sph_data
 	)
 	{
+		check(i_sph_data.sphConfig);
+
 		request_data_spectral();
 		i_sph_data.request_data_spectral();
 
@@ -222,8 +334,10 @@ public:
 			const SPHData &i_sph_data
 	)	const
 	{
-		request_data_spatial();
-		i_sph_data.request_data_spatial();
+		check(i_sph_data.sphConfig);
+
+		request_data_physical();
+		i_sph_data.request_data_physical();
 
 		SPHData out_sph_data(sphConfig);
 
@@ -351,6 +465,36 @@ public:
 	}
 
 
+	/**
+	 * Solve a Helmholtz problem given by
+	 *
+	 * (a + b D^2) x = rhs
+	 */
+	inline
+	SPHData spec_solve_helmholtz(
+			const double &i_a,
+			const double &i_b,
+			double r
+	)
+	{
+		SPHData out(*this);
+
+		const double a = i_a;
+		const double b = i_b/(r*r);
+
+		out.spec_update_lambda(
+			[&](
+				int n, int m,
+				std::complex<double> &io_data
+			)
+			{
+				io_data /= (a + (-b*(double)n*((double)n+1.0)));
+			}
+		);
+
+		return out;
+	}
+
 
 public:
 	/**
@@ -358,7 +502,7 @@ public:
 	 */
 	SPHData spat_truncate()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		SPHData out_sph_data(sphConfig);
 		spat_to_SH(sphConfig->shtns, data_spat, out_sph_data.data_spec);
@@ -502,7 +646,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -540,7 +684,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -574,7 +718,7 @@ public:
 	)
 	{
 		if (data_spec_valid)
-			request_data_spatial();
+			request_data_physical();
 
 #pragma omp parallel for
 		for (int i = 0; i < sphConfig->spat_num_lon; i++)
@@ -650,14 +794,16 @@ public:
 
 
 	/**
-	 * Return the maximum error norm
+	 * Return the maximum error norm between this and the given data in physical space
 	 */
 	double spat_reduce_error_max(
 			const SPHData &i_sph_data
 	)
 	{
-		request_data_spatial();
-		i_sph_data.request_data_spatial();
+		check(i_sph_data.sphConfig);
+
+		request_data_physical();
+		i_sph_data.request_data_physical();
 
 		double error = -1;
 
@@ -679,7 +825,7 @@ public:
 	 */
 	double spat_reduce_abs_max()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		double error = -1;
 
@@ -699,7 +845,7 @@ public:
 	 */
 	double spat_reduce_min()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		double error = std::numeric_limits<double>::infinity();
 
@@ -716,7 +862,7 @@ public:
 	 */
 	double spat_reduce_max()
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		double error = -std::numeric_limits<double>::infinity();
 
@@ -749,7 +895,7 @@ public:
 
 	void spat_print(int i_precision = 8)	const
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::cout << std::setprecision(i_precision);
 
@@ -791,7 +937,7 @@ public:
 			int i_precision = 8
 	)	const
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::ofstream file(i_filename, std::ios_base::trunc);
 
@@ -841,7 +987,7 @@ public:
 			int i_precision = 8
 	)
 	{
-		request_data_spatial();
+		request_data_physical();
 
 		std::ofstream file(i_filename, std::ios_base::trunc);
 

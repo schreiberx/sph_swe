@@ -107,7 +107,9 @@ public:
 	 * Solver for
 	 * 	mu*phi(lambda,mu)
 	 */
-	void solver_component_mu_phi()
+	void solver_component_mu_phi(
+			const std::complex<double> &i_scalar = 1.0
+	)
 	{
 #pragma omp parallel for
 		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
@@ -115,12 +117,11 @@ public:
 			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.rowElement_add(row, n, m, -1, R(n-1,m));
-				lhs.rowElement_add(row, n, m, +1, S(n+1,m));
+				lhs.rowElement_add(row, n, m, -1, R(n-1,m)*i_scalar);
+				lhs.rowElement_add(row, n, m, +1, S(n+1,m)*i_scalar);
 			}
 		}
 	}
-
 
 
 
@@ -144,10 +145,9 @@ public:
 
 
 
-
 	/**
 	 * Solver for
-	 * 	a^4*phi(lambda,mu)
+	 * 	scalar*phi(lambda,mu)
 	 */
 	void solver_component_rexi_z1(
 			const std::complex<double> &i_scalar,

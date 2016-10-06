@@ -58,7 +58,7 @@ public:
 
 	/**
 	 * Number of elements for SPH which is based on
-	 * complex-valued spatial data
+	 * complex-valued physical data
 	 */
 	int cplx_spec_num_elems;
 
@@ -180,7 +180,7 @@ private:
 		 */
 
 		/**
-		 * TEST: iteration over the modes n,m for real-valued spatial space
+		 * TEST: iteration over the modes n,m for real-valued physical space
 		 */
 		{
 			int idx = 0;
@@ -191,7 +191,7 @@ private:
 
 				if (test_idx != idx)
 				{
-					std::cerr << "IDX TEST NOT SUCCESSFUL (real-valued spatial transformation)" << std::endl;
+					std::cerr << "IDX TEST NOT SUCCESSFUL (real-valued physical transformation)" << std::endl;
 					std::cout << "n=" << m << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 					exit(1);
 				}
@@ -202,7 +202,7 @@ private:
 					int test_idx2 = getArrayIndexByModes(n,m);
 					if (test_idx2 != idx)
 					{
-						std::cerr << "IDX TEST2 NOT SUCCESSFUL (real-valued spatial transformation)" << std::endl;
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (real-valued physical transformation)" << std::endl;
 						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 						exit(1);
 					}
@@ -212,14 +212,14 @@ private:
 
 			if (idx != spec_num_elems)
 			{
-				std::cerr << "INTERNAL SPH ERROR (real-valued spatial transformation)" << std::endl;
+				std::cerr << "INTERNAL SPH ERROR (real-valued physical transformation)" << std::endl;
 				assert(false);
 				exit(1);
 			}
 		}
 
 		/**
-		 * TEST: iteration over the modes n,m for complex-valued spatial space
+		 * TEST: iteration over the modes n,m for complex-valued physical space
 		 *
 		 * Note: In SHTNS, the m-coefficients are compactly stored for individual n'l
 		 */
@@ -231,7 +231,7 @@ private:
 
 				if (test_idx != idx)
 				{
-					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued physical transformation)" << std::endl;
 					std::cout << "n=" << n << ", m=" << -n << "     " << idx << ", " << test_idx << std::endl;
 					exit(1);
 				}
@@ -246,7 +246,7 @@ private:
 
 					if (test_idx2 != idx)
 					{
-						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued physical transformation)" << std::endl;
 						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 						exit(1);
 					}
@@ -266,7 +266,7 @@ private:
 
 
 		/**
-		 * TEST: iteration over the modes n,m for complex-valued spatial space
+		 * TEST: iteration over the modes n,m for complex-valued physical space
 		 *
 		 * This version tests for the n-coefficients compactly stored for individual m's
 		 */
@@ -278,7 +278,7 @@ private:
 
 				if (test_idx != idx)
 				{
-					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+					std::cerr << "IDX TEST NOT SUCCESSFUL (complex-valued physical transformation)" << std::endl;
 					std::cout << "n=" << m << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 					exit(1);
 				}
@@ -290,7 +290,7 @@ private:
 
 					if (test_idx2 != idx)
 					{
-						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued spatial transformation)" << std::endl;
+						std::cerr << "IDX TEST2 NOT SUCCESSFUL (complex-valued physical transformation)" << std::endl;
 						std::cout << "n=" << n << ", m=" << m << "     " << idx << ", " << test_idx << std::endl;
 						exit(1);
 					}
@@ -363,11 +363,11 @@ public:
 	 * Setup with given modes.
 	 * Spatial resolution will be determined automatically
 	 */
-	void setupAuto(
-			int i_mmax,
-			int i_nmax,
-			int *o_nphi,
-			int *o_nlat
+	void setupAutoPhysicalSpace(
+			int i_mmax,		/// longitude modes
+			int i_nmax,		/// latitude modes
+			int *o_nphi,	/// physical resolution along longitude
+			int *o_nlat		/// physical resolution along latitude
 	)
 	{
 		shtns_verbose(1);			// displays informations during initialization.
@@ -403,11 +403,11 @@ public:
 	/**
 	 * Setup the SPH Configuration but with twice as much modes
 	 */
-	void setupDouble(
+	void setupModesDouble(
 			SPHConfig *i_sphConfig
 	)
 	{
-		setupAuto(
+		setupAutoPhysicalSpace(
 				i_sphConfig->spec_n_max*2,
 				i_sphConfig->spec_m_max*2,
 				&spat_num_lon,
@@ -417,13 +417,31 @@ public:
 
 
 
+	void setupAdditionalModes(
+			SPHConfig *i_sphConfig,
+			int i_additional_modes
+	)
+	{
+		assert(shtns == nullptr);
+
+		setupAutoPhysicalSpace(
+				i_sphConfig->spec_n_max + i_additional_modes,
+				i_sphConfig->spec_m_max + i_additional_modes,
+				&spat_num_lon,
+				&spat_num_lat
+		);
+	}
+
+
+
 	void shutdown()
 	{
-		if (shtns != nullptr)
-		{
-			shtns_destroy(shtns);
-			shtns = nullptr;
-		}
+		// check if SPHConfig was initialized
+		if (shtns == nullptr)
+			return;
+
+		shtns_destroy(shtns);
+		shtns = nullptr;
 
 		fftw_free(lat);
 		lat = nullptr;
