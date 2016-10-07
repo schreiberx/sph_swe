@@ -400,33 +400,17 @@ public:
 
 
 
-	/**
-	 * Setup the SPH Configuration but with twice as much modes
-	 */
-	void setupModesDouble(
-			SPHConfig *i_sphConfig
-	)
-	{
-		setupAutoPhysicalSpace(
-				i_sphConfig->spec_n_max*2,
-				i_sphConfig->spec_m_max*2,
-				&spat_num_lon,
-				&spat_num_lat
-		);
-	}
-
-
-
 	void setupAdditionalModes(
 			SPHConfig *i_sphConfig,
-			int i_additional_modes
+			int i_additional_modes_longitude,
+			int i_additional_modes_latitude
 	)
 	{
 		assert(shtns == nullptr);
 
 		setupAutoPhysicalSpace(
-				i_sphConfig->spec_n_max + i_additional_modes,
-				i_sphConfig->spec_m_max + i_additional_modes,
+				i_sphConfig->spec_m_max + i_additional_modes_longitude,
+				i_sphConfig->spec_n_max + i_additional_modes_latitude,
 				&spat_num_lon,
 				&spat_num_lat
 		);

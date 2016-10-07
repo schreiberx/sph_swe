@@ -296,6 +296,7 @@ public:
 			{
 				if (simVars.timecontrol.current_simulation_time >= simVars.next_output_dt)
 				{
+					std::cout << std::endl;
 					write_output();
 
 					simVars.next_output_dt += simVars.output_dt;
@@ -327,6 +328,7 @@ public:
 				simVars.timecontrol.current_simulation_time += simVars.timecontrol.current_timestep_size;
 			}
 
+			std::cout << std::endl;
 			write_output();
 			std::cout << std::endl;
 		}
@@ -338,7 +340,12 @@ public:
 			}
 			else
 			{
-				sphConfigRexiAddedModes.setupAdditionalModes(sphConfig, simVars.rexi_use_extended_modes);
+				// Add modes only along latitude since these are the "problematic" modes
+				sphConfigRexiAddedModes.setupAdditionalModes(
+						sphConfig,
+						simVars.rexi_use_extended_modes,	// TODO: Extend SPH wrapper to also support m != n to set this guy to 0
+						simVars.rexi_use_extended_modes
+				);
 				sphConfigRexi = &sphConfigRexiAddedModes;
 			}
 
