@@ -414,6 +414,7 @@ public:
 	{
 		SPHData out_sph_data(i_sph_data);
 
+		// TODO: replace this with a recurrence identity
 		out_sph_data.spat_update_lambda_cogaussian_grid(
 				[](double lambda, double mu, double &o_data)
 				{

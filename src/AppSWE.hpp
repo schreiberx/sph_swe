@@ -96,19 +96,15 @@ public:
 
 
 
-	void setup_initial_conditions_gaussian(double i_center_lat = M_PI/3)
+	void setup_initial_conditions_gaussian(
+			double i_center_lat = M_PI/3,
+			double i_center_lon = M_PI/3
+	)
 	{
 		double exp_fac = 10.0;
 
-#if 0
-		double center_lon = M_PI/3;
-		double center_lat = M_PI/5;
-#else
-		double center_lon = 0;//M_PI;
-		double center_lat = M_PI/3;
-		center_lat = i_center_lat;
-#endif
-
+		double center_lat = i_center_lat;
+		double center_lon = i_center_lon;
 
 		auto initial_condition_h = [&](double lon, double mu, double &o_data)
 		{
@@ -244,12 +240,17 @@ public:
 			else if (simVars.benchmark_scenario_id == 3)
 			{
 				setup_initial_conditions_gaussian(M_PI/3.0);
+				//setup_initial_conditions_gaussian(M_PI, M_PI);
+//				setup_initial_conditions_gaussian(M_PI*0.5, M_PI*0.5);
 //				setup_initial_conditions_gaussian(-M_PI/3.0);
 			}
 		}
 
 
 		bool with_coriolis = false;
+
+		if (simVars.coriolis_omega != 0)
+			with_coriolis = true;
 
 		std::cout << "Using time step size dt = " << simVars.timecontrol.current_timestep_size << std::endl;
 		std::cout << "Running simulation until t_end = " << simVars.timecontrol.max_simulation_time << std::endl;
@@ -381,7 +382,6 @@ public:
 				{
 					std::complex<double> &alpha = rexi.alpha[i];
 					std::complex<double> &beta = rexi.beta_re[i];
-					//beta *= 0.9999;
 
 					if (simVars.use_robert_functions)
 					{
@@ -502,9 +502,9 @@ public:
 										alpha,
 										beta,
 										simVars.earth_radius,
-										simVars.coriolis_omega, //*inv_sqrt_avg_geopo,
+										simVars.coriolis_omega,
 										simVars.h0*simVars.gravitation,
-										simVars.timecontrol.current_timestep_size, //*sqrt_avg_geopo
+										simVars.timecontrol.current_timestep_size,
 										with_coriolis
 								);
 

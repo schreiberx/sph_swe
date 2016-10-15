@@ -31,6 +31,22 @@ public:
 		return -n;
 	}
 
+
+	inline
+	static double G(double n, double m)
+	{
+		n = n+1;
+		return D(n-1,m) + E(n,m)*R(n-1,m);
+	}
+
+
+	inline
+	static double H(double n, double m)
+	{
+		n = n-1;
+		return E(n,m)*S(n+1,m);
+	}
+
 	inline
 	static double R(double k, double m)
 	{

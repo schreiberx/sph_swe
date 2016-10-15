@@ -14,6 +14,7 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <iomanip>
 #include <cassert>
 #include <limits>

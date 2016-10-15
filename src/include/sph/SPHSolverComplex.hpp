@@ -15,10 +15,9 @@
 
 
 /**
- *
  * phi(lambda,mu) denotes the solution
  */
-template <typename T>
+template <typename T>	// T: complex valued single or double precision method
 class SPHSolverComplex	:
 		SPHIdentities
 {
@@ -204,19 +203,12 @@ public:
 			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
 				T *row = lhs.getMatrixRow(n, m);
-#if 0
-				lhs.rowElement_add(row, n, m, -4, i_scalar*cA(n-2,m)*cA(n-4.0,m));
-				lhs.rowElement_add(row, n, m, -2, i_scalar*cA(n-2,m)*cB(n-2,m) + cB(n+0,m)*cA(n-2,m));
-				lhs.rowElement_add(row, n, m,  0, i_scalar*cA(n-2,m)*cC(n+0,m) + cB(n+0,m)*cB(n+0,m) + cC(n+2,m)*cA(n,m));
-				lhs.rowElement_add(row, n, m, +2, i_scalar*cB(n+0,m)*cC(n+2,m) + cC(n+2,m)*cB(n+2,m));
-				lhs.rowElement_add(row, n, m, +4, i_scalar*cC(n+2,m)*cC(n+4,m));
-#else
+
 				lhs.rowElement_add(row, n, m, -4, i_scalar*(A(n-2,m)*A(n-4.0,m)));
 				lhs.rowElement_add(row, n, m, -2, i_scalar*(A(n-2,m)*B(n-2,m)+B(n,m)*A(n-2,m)));
 				lhs.rowElement_add(row, n, m,  0, i_scalar*(A(n-2,m)*C(n,m)+B(n,m)*B(n,m)+C(n+2,m)*A(n,m)));
 				lhs.rowElement_add(row, n, m, +2, i_scalar*(B(n,m)*C(n+2,m)+C(n+2,m)*B(n+2,m)));
 				lhs.rowElement_add(row, n, m, +4, i_scalar*(C(n+2,m)*C(n+4,m)));
-#endif
 			}
 		}
 	}
@@ -246,6 +238,31 @@ public:
 
 	/**
 	 * Solver for
+	 * Z4robert := grad_j(mu) * grad_i(phi)
+	 */
+	void solver_component_rexi_z4robert(
+			const std::complex<double> &i_scalar,
+			double i_r
+	)
+	{
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
+		{
+			std::complex<double> fac = 1.0/(i_r*i_r)*i_scalar*T(0, m);
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+				lhs.rowElement_add(row, n, m, -2, -fac*A(n-2,m));
+				lhs.rowElement_add(row, n, m,  0, -fac*B(n,m) + fac);
+				lhs.rowElement_add(row, n, m, +2, -fac*C(n+2,m));
+			}
+		}
+	}
+
+
+
+	/**
+	 * Solver for
 	 * Z5 := grad_j(mu) * mu^2 * grad_i(phi)
 	 */
 	void solver_component_rexi_z5(
@@ -258,10 +275,38 @@ public:
 		{
 			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
 			{
+				std::complex<double> fac = 1.0/(i_r*i_r)*i_scalar*T(0, m);
+
 				T *row = lhs.getMatrixRow(n, m);
-				lhs.rowElement_add(row, n, m,  -2, 1.0/(i_r*i_r)*i_scalar*T(0, m)*A(n-2,m));
-				lhs.rowElement_add(row, n, m,   0, 1.0/(i_r*i_r)*i_scalar*T(0, m)*B(n+0,m));
-				lhs.rowElement_add(row, n, m,  +2, 1.0/(i_r*i_r)*i_scalar*T(0, m)*C(n+2,m));
+				lhs.rowElement_add(row, n, m,  -2, fac*A(n-2,m)	);
+				lhs.rowElement_add(row, n, m,   0, fac*B(n+0,m)	);
+				lhs.rowElement_add(row, n, m,  +2, fac*C(n+2,m)	);
+			}
+		}
+	}
+
+
+	/**
+	 * Solver for
+	 * Z5robert := grad_j(mu) * mu^2 * grad_i(phi)
+	 */
+	void solver_component_rexi_z5robert(
+			const std::complex<double> &i_scalar,
+			double i_r
+	)
+	{
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
+		{
+			std::complex<double> fac = 1.0/(i_r*i_r)*i_scalar*T(0, m);
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+				lhs.rowElement_add(row, n, m,  -2,    -fac*(A(n-2, m)*A(n-4, m))    );
+				lhs.rowElement_add(row, n, m,  -2,    -fac*(A(n-2, m)*B(n-2, m) + B(n, m)*A(n-2, m))                 + fac*A(n-2, m)        );
+				lhs.rowElement_add(row, n, m,  -2,    -fac*(A(n-2, m)*C(n, m) + B(n, m)*B(n, m) + C(n+2, m)*A(n, m)) + fac*B(n, m)          );
+				lhs.rowElement_add(row, n, m,  -2,    -fac*(B(n, m)*C(n+2, m) + C(n+2, m)*B(n+2, m))                 + fac*C(n+2, m)        );
+				lhs.rowElement_add(row, n, m,  -2,    -fac*(C(n+2, m)*C(n+4, m))    );
 			}
 		}
 	}
@@ -286,6 +331,42 @@ public:
 				lhs.rowElement_add(row, n, m,  -2, -1.0/(i_r*i_r)*i_scalar*(D(n-1,m)*R(n-2,m) + (E(n,m)-3.0)*A(n-2,m)));
 				lhs.rowElement_add(row, n, m,   0, -1.0/(i_r*i_r)*i_scalar*(1.0+D(n-1,m)*S(n,m)+(E(n,m)-3.0)*B(n,m)));
 				lhs.rowElement_add(row, n, m,  +2, -1.0/(i_r*i_r)*i_scalar*(E(n,m)-3.0)*C(n+2,m));
+			}
+		}
+	}
+
+	/**
+	 * Solver for
+	 * Z6robert := grad_j(mu) * mu * grad_j(phi)
+	 */
+	void solver_component_rexi_z6robert(
+			const std::complex<double> &i_scalar,
+			double i_r
+	)
+	{
+#pragma omp parallel for
+		for (int m = -sphConfig->spec_m_max; m <= sphConfig->spec_m_max; m++)
+		{
+			std::complex<double> s = 1.0/(i_r*i_r)*i_scalar*(double)m;
+			for (int n = std::abs(m); n <= sphConfig->spec_n_max; n++)
+			{
+				T *row = lhs.getMatrixRow(n, m);
+
+				lhs.rowElement_add(row, n, m,  -2, s*(G(n-1,m)*R(n-2,m))	);
+				lhs.rowElement_add(row, n, m,   0, s*(G(n-1,m)*S(n,m) + H(n+1,m)*R(n,m))	);
+				lhs.rowElement_add(row, n, m,  +2, s*(H(n+1,m)*S(n+2,m))	);
+
+				lhs.rowElement_add(row, n, m,  -4, s*(-A(n-4,m)*(G(n-1,m)*R(n-2,m)))	);
+				lhs.rowElement_add(row, n, m,  -2, s*(-B(n-2,m)*(G(n-1,m)*R(n-2,m)))	);
+				lhs.rowElement_add(row, n, m,   0, s*(-C(n+0,m)*(G(n-1,m)*R(n-2,m)))	);
+
+				lhs.rowElement_add(row, n, m,  -2, s*(-A(n-2,m)*(G(n-1,m)*S(n,m) + H(n+1,m)*R(n,m)))	);
+				lhs.rowElement_add(row, n, m,   0, s*(-B(n+0,m)*(G(n-1,m)*S(n,m) + H(n+1,m)*R(n,m)))	);
+				lhs.rowElement_add(row, n, m,  +2, s*(-C(n+2,m)*(G(n-1,m)*S(n,m) + H(n+1,m)*R(n,m)))	);
+
+				lhs.rowElement_add(row, n, m,   0, s*(-A(n+0,m)*(H(n+1,m)*S(n+2,m)))	);
+				lhs.rowElement_add(row, n, m,  +2, s*(-B(n+2,m)*(H(n+1,m)*S(n+2,m)))	);
+				lhs.rowElement_add(row, n, m,  +4, s*(-C(n+4,m)*(H(n+1,m)*S(n+2,m)))	);
 			}
 		}
 	}

@@ -67,63 +67,64 @@ int setup(
 
 		for (int i = 2; i < i_argc; i++)
 		{
-			if (i_argv[i][0] == 'F')
+			switch (i_argv[i][0])
 			{
+			case 'F':
 				simVars.coriolis_omega = atof(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'P')
-			{
+				break;
+
+			case 'P':
 				simVars.program_id = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'N')
-			{
+				break;
+
+			case 'N':
 				simVars.use_nonlinear_equations = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'M')
-			{
+				break;
+
+			case 'M':
 				simVars.rexi_M = atoi(&(i_argv[i][1]));
 				simVars.use_rexi = simVars.rexi_M > 0;
-			}
-			else if (i_argv[i][0] == 'H')
-			{
+				break;
+
+			case 'H':
 				simVars.rexi_h = atof(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'I')
-			{
+				break;
+
+			case 'I':
 				simVars.rexi_use_half_poles = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'R')
-			{
+				break;
+
+			case 'R':
 				simVars.timecontrol.current_timestep_size = atof(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'S')
-			{
+				break;
+
+			case 'S':
 				simVars.use_robert_functions = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'X')
-			{
+				break;
+
+			case 'X':
 				simVars.rexi_use_extended_modes = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'Q')
-			{
+				break;
+
+			case 'Q':
 				simVars.benchmark_scenario_id = atoi(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'E')
-			{
+				break;
+
+			case 'E':
 				simVars.timecontrol.max_simulation_time = atof(&(i_argv[i][1]));
-				std::cout << simVars.timecontrol.max_simulation_time << std::endl;
-			}
-			else if (i_argv[i][0] == 'V')
-			{
+				break;
+
+			case 'V':
 				simVars.viscosity2 = atof(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'O')
-			{
+				break;
+
+			case 'O':
 				simVars.output_dt = atof(&(i_argv[i][1]));
-			}
-			else if (i_argv[i][0] == 'W')
-			{
+				break;
+
+			case 'W':
 				simVars.rexi_M = atoi(&(i_argv[i][1]));
+				break;
 			}
 		}
 	}

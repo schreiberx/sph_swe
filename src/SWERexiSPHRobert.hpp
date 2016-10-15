@@ -86,29 +86,48 @@ public:
 		ir = 1.0/r;
 
 		coriolis_omega = i_coriolis_omega;
+
+#if 0
+		/*
+		 * ACTIVATE THIS FOR DEBUGGING PURPOSE ONLY!!!
+		 *
+		 * Setting this to zero is useful to check the
+		 * (a*a+f*f)^{-1} oriented solver without any
+		 * Coriolis effect it in
+		 */
+		// TODO: REMOVE ME!!!!
+		// TODO: REMOVE ME!!!!
+		// TODO: REMOVE ME!!!!
+		coriolis_omega = 0;
+#endif
+
 		two_omega = 2.0*coriolis_omega;
 		avg_geopotential = i_avg_geopotential;
 
 		sphConfig = i_sphConfig;
 
-		sphSolverPhi.setup(sphConfig, 1);
-		// alpha^2
-		sphSolverPhi.solver_component_rexi_z1(	(alpha*alpha), r);
-
-		// -avg_geopotential*laplace
-		sphSolverPhi.solver_component_rexi_z7(	-avg_geopotential, r);
-
-		// (-avg_geopotential)*(-2)*Phi
-		sphSolverPhi.solver_component_rexi_z1(	-2.0*avg_geopotential/(r*r)*(-2.0)	, r);
+		sphSolverPhi.setup(sphConfig, 4);
+		sphSolverPhi.solver_component_rexi_z1(	(alpha*alpha)*(alpha*alpha), r);
 
 		if (include_coriolis_effect)
 		{
+			sphSolverPhi.solver_component_rexi_z2(	2.0*two_omega*two_omega*alpha*alpha, r);
+			sphSolverPhi.solver_component_rexi_z3(	(two_omega*two_omega)*(two_omega*two_omega), r);
+			sphSolverPhi.solver_component_rexi_z4robert(	-avg_geopotential*alpha*two_omega, r);
+			sphSolverPhi.solver_component_rexi_z5robert(	avg_geopotential/alpha*two_omega*two_omega*two_omega, r);
+			sphSolverPhi.solver_component_rexi_z6robert(	avg_geopotential*2.0*two_omega*two_omega, r);
+		}
+		sphSolverPhi.solver_component_rexi_z7(	-avg_geopotential*alpha*alpha, r);
+		if (include_coriolis_effect)
+		{
+			sphSolverPhi.solver_component_rexi_z8(	-avg_geopotential*two_omega*two_omega, r);
 		}
 
-		// not necessary yet
 		sphSolverVel.setup(sphConfig, 2);
+		sphSolverVel.solver_component_rexi_z1(	alpha*alpha, r);
 		if (include_coriolis_effect)
 		{
+			sphSolverVel.solver_component_rexi_z2(	two_omega*two_omega, r);
 		}
 	}
 
@@ -129,7 +148,8 @@ public:
 			SPHOperatorsComplex &op
 	)
 	{
-#if 0
+#if 1
+		// TODO: replace with spectral operation
 		SPHDataComplex mu(i_phi0.sphConfig);
 		mu.spat_update_lambda_gaussian_grid(
 				[&](double lon, double mu, std::complex<double> &o_data)
@@ -143,14 +163,8 @@ public:
 		SPHDataComplex u0(i_u0);
 		SPHDataComplex v0(i_v0);
 
-#if 0
-		phi0 *= (1.0/timestep_size);
-		u0 *= (1.0/timestep_size);
-		v0 *= (1.0/timestep_size);
-#endif
-
-		SPHDataComplex div0(ir*op.robert_div(u0, v0));
-		SPHDataComplex eta0(ir*op.robert_vort(u0, v0));
+		SPHDataComplex div0 = ir*op.robert_div(u0, v0);
+		SPHDataComplex eta0 = ir*op.robert_vort(u0, v0);
 
 		SPHDataComplex phi(sphConfig);
 		SPHDataComplex u(sphConfig);
@@ -158,30 +172,80 @@ public:
 
 		if (include_coriolis_effect)
 		{
-			assert(false);
-			std::cerr << "NOT YET IMPLEMENTED!" << std::endl;
-		}
-		else
-		{
+
 #if 1
 
-			SPHDataComplex rhs = avg_geopotential*div0 + alpha*i_phi0;
-			phi = rhs.spec_solve_helmholtz(alpha*alpha, -avg_geopotential, r);
-//			phi = sphSolverPhi.solve(rhs);
+#if 0
+			// VERSION A
+			// only avlid for Robert formulation!
+			SPHDataComplex tmp = (
+					-(alpha*alpha*u0 - two_omega*two_omega*op.mu2(u0)) +
+					2.0*alpha*two_omega*op.mu(v0)
+				);
 
-			u = (1.0/alpha) * (u0 + ir*op.robert_grad_lon(phi));
-			v = (1.0/alpha) * (v0 + ir*op.robert_grad_lat(phi));
+			SPHDataComplex Fc_k =	two_omega*ir*(tmp-op.mu2(tmp));
+
+#else
+			// VERSION B
+			SPHDataComplex Fc_k =	two_omega*ir*op.robert_grad_lat(mu)*(
+										-(alpha*alpha*u0 - two_omega*two_omega*op.mu2(u0)) +
+										2.0*alpha*two_omega*op.mu(v0)
+									);
+
+#endif
+
+			SPHDataComplex foo = 	avg_geopotential*(div0 - two_omega*(1.0/alpha)*op.mu(eta0)) +
+									(alpha*i_phi0 + two_omega*two_omega*(1.0/alpha)*op.mu2(i_phi0));
+
+			SPHDataComplex rhs =	alpha*alpha*foo +
+									two_omega*two_omega*op.mu2(foo) +
+									(avg_geopotential/alpha)*Fc_k;
+
+
+			phi = sphSolverPhi.solve(rhs);
+
+			SPHDataComplex a = u0 + ir*op.robert_grad_lon(phi);
+			SPHDataComplex b = v0 + ir*op.robert_grad_lat(phi);
+
+			SPHDataComplex rhsa = alpha*a - two_omega*op.mu(b);
+			SPHDataComplex rhsb = two_omega*op.mu(a) + alpha*b;
+
+			u = sphSolverVel.solve(rhsa);
+			v = sphSolverVel.solve(rhsb);
 
 #else
 
+			SPHDataComplex Fc_k =	two_omega*ir*op.robert_grad_lon(mu)*(
+										-(alpha*alpha*u0 - two_omega*two_omega*mu*mu*u0) +
+										2.0*alpha*two_omega*mu*v0
+									);
+
+			SPHDataComplex foo = 	avg_geopotential*(div0 - two_omega*(1.0/alpha)*mu*eta0) +
+									(alpha*i_phi0 + two_omega*two_omega*(1.0/alpha)*mu*mu*i_phi0);
+
+			SPHDataComplex rhs =	alpha*alpha*foo +
+									two_omega*two_omega*mu*mu*foo +
+									(1.0/alpha)*Fc_k;
+
+			phi = sphSolverPhi.solve(rhs);
+
+			SPHDataComplex a = u0 + ir*op.robert_grad_lon(phi);
+			SPHDataComplex b = v0 + ir*op.robert_grad_lat(phi);
+
+			SPHDataComplex rhsa = alpha*a - two_omega*mu*b;
+			SPHDataComplex rhsb = two_omega*mu*a + alpha*b;
+
+			u = sphSolverVel.solve(rhsa);
+			v = sphSolverVel.solve(rhsb);
+#endif
+		}
+		else
+		{
 			SPHDataComplex rhs = avg_geopotential*div0 + alpha*i_phi0;
 			phi = rhs.spec_solve_helmholtz(alpha*alpha, -avg_geopotential, r);
 
-			// same solver, but without solving inverse problem
-			u = (1.0/alpha) * (u0 + ir*op.grad_lon(phi));
-			v = (1.0/alpha) * (v0 + ir*op.grad_lat(phi));
-
-#endif
+			u = (1.0/alpha) * (u0 + ir*op.robert_grad_lon(phi));
+			v = (1.0/alpha) * (v0 + ir*op.robert_grad_lat(phi));
 		}
 
 		phi *= beta;
